@@ -13,9 +13,10 @@ from dotenv import load_dotenv
 import bs4
 from langchain_teddynote import logging
 from langchain_core.documents import Document
+from datetime import datetime
 
 # 데이터 불러오기
-with open(r'C:\Users\RMARKET\Desktop\STFO\STFO\News_Data.json', 'r', encoding='utf-8') as f:
+with open(r'C:\Users\RMARKET\Desktop\STFO\STFO\Data\Hankyung_Data.json', 'r', encoding='utf-8') as f:
     data_json = json.load(f)
 
 load_dotenv()
@@ -42,7 +43,8 @@ if 'messages_displayed' not in st.session_state:
 
 # 뉴스 로드
 docs = [
-        Document(page_content=news_info['news_content'], metadata={"source": news_info['news_url']})
+        Document(page_content=news_info['news_content'], metadata={"source": news_info['news_url'], "title": news_info['news_title'],
+                                                                   "date": news_info['news_first_upload_time']})
             for news_info in data_json]
 
 splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
