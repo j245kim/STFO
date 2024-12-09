@@ -16,10 +16,10 @@ from langchain_teddynote import logging
 import numpy as np
 import faiss
 import pandas as pd
-from sentence_transformers import SentenceTransformer
 from langchain.docstore.document import Document
 from langchain.docstore import InMemoryDocstore
 import json
+from datetime import  datetime
 
 
 load_dotenv()
@@ -90,6 +90,9 @@ with open(news_docs_path,'r',encoding='utf-8') as file:
 documents = []
 for item in news_docs:
     if 'news_content' in item and item['news_content']:  # 'news_content'가 있는 경우만 처리
+        raw_date = item.get("news_last_upload_time")
+        parsed_date = datetime.strptime(raw_date, '%Y-%m-%d %p %I:%M').isoformat() if raw_date else None
+
         documents.append(
             Document(
                 page_content=item["news_content"],  # 텍스트 본문
@@ -98,7 +101,7 @@ for item in news_docs:
                     "author": item.get("author"),
                     "url": item.get("news_url"),
                     "website": item.get("news_website"),
-                    "date": item.get("news_last_upload_time")
+                    "date": parsed_date
                 }
             )
         )
