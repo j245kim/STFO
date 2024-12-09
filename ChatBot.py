@@ -86,6 +86,7 @@ st.markdown("""
             background-color: #00aaff;
             border-radius: 5px;
             cursor: pointer;
+            # margin-top: -30px
             font-weight: bold;
         }
 
@@ -116,7 +117,7 @@ st.markdown("""
             color: #f72f08ff;  
             cursor: pointer; 
         }
-
+            
     </style>
 """, unsafe_allow_html=True)
 
@@ -178,8 +179,18 @@ st.markdown("""
 
 # 이전 대화 표시
 for message in st.session_state.messages_displayed:
-    with st.chat_message(message['role']):
-        st.write(message['content'])
+    if message['role'] == 'assistant':
+        # AI 메시지에만 비트코인 아이콘 설정
+        with st.chat_message(message['role'], avatar="bitcoin.png"):
+            st.write(message['content'])
+    else:
+        # 사용자 메시지에는 기본 아이콘 설정
+        st.markdown("""
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                <div style="flex-grow: 1; padding: 10px; background-color: #ffffff;">
+                    {}</div>
+            </div>
+        """.format(message['content']), unsafe_allow_html=True)
 
 # 사용자 입력
 prompt = st.text_input('메시지를 입력하세요.', key='user_input', placeholder='메시지를 입력해주세요...', label_visibility="collapsed")
