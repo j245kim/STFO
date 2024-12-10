@@ -82,7 +82,7 @@ for timestamp, row in df_coin_high.iterrows():
 docs = [Document(page_content=doc) for doc in markdown_docs]
 
 # 뉴스 데이터(JSON)을 불러오기
-news_docs_path = 'data_indexing.json'
+news_docs_path = 'News_Data.json'
 with open(news_docs_path,'r',encoding='utf-8') as file:
     news_docs = json.load(file)
 
