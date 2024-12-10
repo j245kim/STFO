@@ -47,7 +47,7 @@ docs = [
                                                                    "date": news_info['news_first_upload_time']})
             for news_info in data_json]
 
-splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+splitter = CharacterTextSplitter(chunk_size=100, chunk_overlap=10)
 split_texts = splitter.split_documents(docs)
 
 # 임베딩
