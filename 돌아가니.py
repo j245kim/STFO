@@ -13,22 +13,12 @@ import bs4
 from langchain_core.documents import Document
 import shelve
 
-from dotenv import load_dotenv
-from langchain.embeddings.openai import OpenAIEmbeddings
 
-# .env 파일 로드
-load_dotenv()
-
-# OpenAI API 키 가져오기
-api_key = os.getenv("OPENAI_API_KEY")
-
-# Embeddings 초기화
-embeddings = OpenAIEmbeddings(openai_api_key=api_key)
 
 # 데이터 불러오기
 with open(r'C:\STFOPorject\STFO-2\News_Data_short.json', 'r', encoding='utf-8') as f:
     data_json = json.load(f)
-
+load_dotenv()
 
 # gpt4o 모델 설정
 llm = ChatOpenAI(
@@ -36,38 +26,21 @@ llm = ChatOpenAI(
     temperature=0.2,
     openai_api_key=os.getenv('OPENAI_API_KEY')
 )
-path = 'chat_history.json'
-path_im = 'chat_important_history.json'
-
-# 대화 기록 로드 함수
+# Load chat history from shelve file
 def load_chat_history():
-    """JSON 파일에서 대화 기록을 로드"""
-    if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as file:
-            return json.load(file)
-    return [{'role': 'system', 'content': '당신은 간단하고 논리적으로 답변하는 교수님입니다.'}]
-
-# 대화 기록 저장 함수
+    with shelve.open("chat_history") as db:
+        return db.get("messages", [])
 def save_chat_history(messages):
-    """대화 기록을 JSON 파일에 저장"""
-    with open(path, 'w', encoding='utf-8') as file:
-        json.dump(messages, file, ensure_ascii=False, indent=4)
-
-
-# 뉴스 데이터 벡터 저장소 초기화
-if "vector_store" not in st.session_state:
-    embeddings = OpenAIEmbeddings()
-    # 예시: 뉴스 데이터를 벡터화하여 FAISS에 저장 (데이터 필요)
-    # st.session_state.vector_store = FAISS.from_documents(news_documents, embeddings)
-    st.session_state.vector_store = None
-
-# 대화 메모리 초기화
-if "memory" not in st.session_state:
-    st.session_state.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-
-# 대화 기록 불러오기 또는 초기화
+    with shelve.open("chat_history") as db:
+        db["messages"] = messages
+# Initialize or load chat history
 if "messages" not in st.session_state:
     st.session_state.messages = load_chat_history()
+# Sidebar with a button to delete chat history
+with st.sidebar:
+    if st.button("Delete Chat History"):
+        st.session_state.messages = []
+        save_chat_history([])
 
 ###################
 # 타이틀
@@ -235,7 +208,7 @@ st.markdown("""
 # - 사용자가 입력한 내용을 `st.session_state['user_input']`에 저장
 prompt = st.text_input('메시지를 입력하세요.', key='user_input', placeholder='메시지를 입력해주세요...', label_visibility="collapsed")
 
-########################################
+#######################################################
 
 
 
@@ -247,6 +220,7 @@ if prompt:
     else:
         # 사용자 입력 메시지를 대화 메모리에 추가 ####???여기 바꾸기
         st.session_state.messages.append({"role": "user", "content": prompt})
+    # 이 리스트(st.session_state.messages)에 쿼리와 메시지가 입력됨
         try:
             # 뉴스 데이터 벡터 저장소에서 검색 기능 활성화
             retriever = st.session_state.vector_store.as_retriever()
@@ -261,24 +235,40 @@ if prompt:
                 memory=st.session_state.memory
             )
             
-            # GPT 모델로 질문에 대한 응답 생성
-            response = chain({"question": prompt})
-            ai_response = response["answer"]
 
-            # GPT 응답을 대화 기록에 추가
-            st.session_state.messages.append({"role": "assistant", "content": ai_response})
 
-            # 대화 내역 저장
-            save_chat_history(st.session_state.messages)
+        # OpenAI 모델의 응답 생성
+            with st.chat_message("assistant", avatar="bitcoin.png"):  # AI 메시지 블록 생성
+                message_placeholder = st.empty()  # 스트리밍 응답을 표시하기 위한 빈 자리 생성
+                full_response = ""  # 전체 응답 내용을 저장할 변수 초기화
+                
+                # OpenAI API를 호출하여 GPT 모델 응답 생성
+                for response in client.chat.completions.create(
+                    model=st.session_state["openai_model"],  # 사용 중인 모델 이름
 
-            # 대화 표시
-            with st.chat_message("user"):
-                st.markdown(prompt)
-            with st.chat_message("assistant"):
-                st.markdown(ai_response)
+                    messages=st.session_state["messages"],  # 이전 대화 기록을 포함한 전체 메시지 전달###
+                    #이전 대화를 기억할 수 있게 됨
+
+                    stream=True,  # 스트리밍 모드로 응답을 받아옴
+                ):
+                    # 스트리밍 데이터에서 응답 텍스트를 하나씩 추가
+                    full_response += response.choices[0].delta.content or ""  
+                    # 응답을 실시간으로 화면에 표시 (스트리밍 중인 응답)
+                    message_placeholder.markdown(full_response + "|")
+                
+                # 스트리밍이 끝난 후 최종 응답을 표시
+                message_placeholder.markdown(full_response)
+
+            # 생성된 AI 응답을 세션 상태에 추가
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+
+
 
         except Exception as e:
-            st.error(f"오류가 발생했습니다: {e}")
+            # 예외 발생 시 오류 메시지 출력
+            st.error(f'오류가 발생했습니다. : {str(e)}')
+        
 
 
 # 사이드바: 대화 내역 표시

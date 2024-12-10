@@ -12,23 +12,15 @@ from dotenv import load_dotenv
 import bs4
 from langchain_core.documents import Document
 import shelve
+from openai import OpenAI
 
-from dotenv import load_dotenv
-from langchain.embeddings.openai import OpenAIEmbeddings
-
-# .env 파일 로드
-load_dotenv()
-
-# OpenAI API 키 가져오기
-api_key = os.getenv("OPENAI_API_KEY")
-
-# Embeddings 초기화
-embeddings = OpenAIEmbeddings(openai_api_key=api_key)
 
 # 데이터 불러오기
-with open(r'C:\STFOPorject\STFO-2\News_Data_short.json', 'r', encoding='utf-8') as f:
+with open(r'News_Data.json', 'r', encoding='utf-8') as f:
     data_json = json.load(f)
+load_dotenv()
 
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # gpt4o 모델 설정
 llm = ChatOpenAI(
@@ -36,40 +28,32 @@ llm = ChatOpenAI(
     temperature=0.2,
     openai_api_key=os.getenv('OPENAI_API_KEY')
 )
-path = 'chat_history.json'
-path_im = 'chat_important_history.json'
 
-# 대화 기록 로드 함수
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+if "openai_model" not in st.session_state:
+    st.session_state["openai_model"] = "gpt-4o"
+
+
+# Load chat history from shelve file
 def load_chat_history():
-    """JSON 파일에서 대화 기록을 로드"""
-    if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as file:
-            return json.load(file)
-    return [{'role': 'system', 'content': '당신은 간단하고 논리적으로 답변하는 교수님입니다.'}]
-
-# 대화 기록 저장 함수
+    with shelve.open("chat_history") as db:
+        return db.get("messages", [])
+    
 def save_chat_history(messages):
-    """대화 기록을 JSON 파일에 저장"""
-    with open(path, 'w', encoding='utf-8') as file:
-        json.dump(messages, file, ensure_ascii=False, indent=4)
+    with shelve.open("chat_history") as db:
+        db["messages"] = messages
 
-
-# 뉴스 데이터 벡터 저장소 초기화
-if "vector_store" not in st.session_state:
-    embeddings = OpenAIEmbeddings()
-    # 예시: 뉴스 데이터를 벡터화하여 FAISS에 저장 (데이터 필요)
-    # st.session_state.vector_store = FAISS.from_documents(news_documents, embeddings)
-    st.session_state.vector_store = None
-
-# 대화 메모리 초기화
-if "memory" not in st.session_state:
-    st.session_state.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-
-# 대화 기록 불러오기 또는 초기화
+# Initialize or load chat history
 if "messages" not in st.session_state:
     st.session_state.messages = load_chat_history()
 
-###################
+# Sidebar with a button to delete chat history
+with st.sidebar:
+    if st.button("Delete Chat History"):
+        st.session_state.messages = []
+        save_chat_history([])
+
+#####################
 # 타이틀
 st.markdown("""
     <style>
@@ -158,6 +142,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+
 # 상태 관리 : 초기화
 if 'vector_store' not in st.session_state:
     st.session_state.vector_store = None
@@ -165,6 +150,7 @@ if 'memory' not in st.session_state:
     st.session_state.memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
 if 'messages_displayed' not in st.session_state:
     st.session_state.messages_displayed = []
+
 
 # 뉴스 로드
 docs = [
@@ -177,11 +163,12 @@ split_texts = splitter.split_documents(docs)
 # 임베딩
 embeddings = OpenAIEmbeddings()
 
-# FAISS 벡터 저장소 생성
+#  FAISS 벡터 저장소 생성
 vector_store = FAISS.from_documents(split_texts, embeddings)
 st.session_state.vector_store = vector_store
 
-################
+
+###########
 # 타이틀 표시
 st.markdown('<div class="header">:상승세인_차트: 암호화폐 기반 대화형 챗봇 :말풍선:</div>', unsafe_allow_html=True)
 st.markdown('<p class="crypto-text">:전구: 암호화폐와 관련한 이야기를 입력하면 관련 정보를 바탕으로 대답합니다. :로켓:</p>', unsafe_allow_html=True)
@@ -212,9 +199,7 @@ st.markdown("""
         <div class="prompt-item"><span>3) :생각하는_얼굴:</span> 김진우의 비밀을 설명해줘!</div>
     </div>
 """, unsafe_allow_html=True)
-
-
-# # 이전 대화 표시
+# 이전 대화 표시
 # for message in st.session_state.messages_displayed:
 #     if message['role'] == 'assistant':
 #         # AI 메시지에만 비트코인 아이콘 설정
@@ -228,68 +213,66 @@ st.markdown("""
 #                     {}</div>
 #             </div>
 #         """.format(message['content']), unsafe_allow_html=True)
-
-
-# 사용자 입력 창 생성
-# - '메시지를 입력하세요.'라는 제목과 함께 텍스트 입력 상자를 표시
-# - 사용자가 입력한 내용을 `st.session_state['user_input']`에 저장
-prompt = st.text_input('메시지를 입력하세요.', key='user_input', placeholder='메시지를 입력해주세요...', label_visibility="collapsed")
-
-########################################
+#########################
 
 
 
-# 사용자가 입력을 했을 경우 실행
+# 사용자 입력 창을 생성합니다.
+# - '메시지를 입력하세요.'라는 제목과 함께 텍스트 입력 상자를 표시합니다.
+# - 사용자가 입력한 내용을 세션 상태의 'user_input' 키로 관리합니다.
+# 세션 상태 초기화 (대화 기록 관리)
+if "messages" not in st.session_state:
+    st.session_state.messages = []  # 메시지 리스트 초기화
+
+# 사용자 입력 창
+prompt = st.text_input(
+    '메시지를 입력하세요.',
+    key='user_input',
+    placeholder='메시지를 입력해주세요...',
+    label_visibility="collapsed"
+)
+
+# 사용자 입력이 있을 경우 실행
 if prompt:
-    # 뉴스 데이터가 저장된 벡터 저장소가 초기화되지 않았으면 오류 메시지 출력
-    if st.session_state.vector_store is None:
-        st.error('다시 입력해주세요!')  # 벡터 저장소가 없으면 에러 메시지 표시
-    else:
-        # 사용자 입력 메시지를 대화 메모리에 추가 ####???여기 바꾸기
-        st.session_state.messages.append({"role": "user", "content": prompt})
+    # 세션 상태에 사용자가 입력한 메시지를 추가
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
+    # 사용자 메시지를 화면에 표시
+    with st.chat_message("user"):  # 사용자 메시지 블록 생성
+        st.markdown(prompt)  # 입력된 메시지를 출력
+
+    # OpenAI 모델의 응답 생성
+    with st.chat_message("assistant", avatar="bitcoin.png"):  # AI 메시지 블록 생성
+        message_placeholder = st.empty()  # 스트리밍 응답을 표시하기 위한 빈 자리 생성
+        full_response = ""  # 전체 응답 내용을 저장할 변수 초기화
+
+        # OpenAI API를 호출하여 GPT 모델 응답 생성
         try:
-            # 뉴스 데이터 벡터 저장소에서 검색 기능 활성화
-            retriever = st.session_state.vector_store.as_retriever()
+            for response in openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",  # 사용 중인 OpenAI 모델 (변경 가능)
+                messages=st.session_state["messages"],  # 이전 대화 기록 전달
+                stream=True,  # 스트리밍 모드로 응답을 받아옴
+            ):
+                # 스트리밍 데이터에서 응답 텍스트를 하나씩 추가
+                full_response += response.choices[0].delta.get("content", "")
+                # 응답을 실시간으로 화면에 표시 (스트리밍 중인 응답)
+                message_placeholder.markdown(full_response + "|")
             
-            # ConversationalRetrievalChain 생성
-            # - `llm`: GPT 모델
-            # - `retriever`: 뉴스 데이터를 검색하는 기능
-            # - `memory`: 대화 메모리 (이전 대화 내용 유지)
-            chain = ConversationalRetrievalChain.from_llm(
-                llm=llm,
-                retriever=retriever,
-                memory=st.session_state.memory
-            )
+            # 스트리밍이 끝난 후 최종 응답을 표시
+            message_placeholder.markdown(full_response)
             
-            # GPT 모델로 질문에 대한 응답 생성
-            response = chain({"question": prompt})
-            ai_response = response["answer"]
-
-            # GPT 응답을 대화 기록에 추가
-            st.session_state.messages.append({"role": "assistant", "content": ai_response})
-
-            # 대화 내역 저장
-            save_chat_history(st.session_state.messages)
-
-            # 대화 표시
-            with st.chat_message("user"):
-                st.markdown(prompt)
-            with st.chat_message("assistant"):
-                st.markdown(ai_response)
-
+            # 생성된 AI 응답을 세션 상태에 추가
+            st.session_state.messages.append({"role": "assistant", "content": full_response})
+        
         except Exception as e:
+            # 에러 발생 시 화면에 오류 메시지 출력
             st.error(f"오류가 발생했습니다: {e}")
 
 
-# 사이드바: 대화 내역 표시
-with st.sidebar:
-    st.markdown('### 대화 내역')  # 대화 내역 제목
-    # 대화 내역을 최신 순으로 출력
-    for message in st.session_state.messages_displayed:
-        if message['role'] == 'user':  # 사용자 메시지일 경우
-            st.markdown(f"**User**: {message['content']}")  # 'User'라는 이름으로 표시
-        else:  # AI 메시지일 경우
-            st.markdown(f"**AI**: {message['content']}")  # 'AI'라는 이름으로 표시
+
 
 
 # <a href="https://www.flaticon.com/free-icons/bitcoin" title="bitcoin icons">Bitcoin icons created by Freepik - Flaticon</a>
+
+
+
