@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 import bs4
 from langchain_core.documents import Document
 import shelve
-
+from langchain_teddynote import logging
+from openai import OpenAI
 
 # 데이터 불러오기
 with open(r'News_Data.json', 'r', encoding='utf-8') as f:
@@ -27,6 +28,11 @@ llm = ChatOpenAI(
     openai_api_key=os.getenv('OPENAI_API_KEY')
 )
 
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+if "openai_model" not in st.session_state:
+    st.session_state["openai_model"] = "gpt-4o"
+
 # Load chat history from shelve file
 def load_chat_history():
     with shelve.open("chat_history") as db:
@@ -40,6 +46,7 @@ def save_chat_history(messages):
 # Initialize or load chat history
 if "messages" not in st.session_state:
     st.session_state.messages = load_chat_history()
+    
 
 # Sidebar with a button to delete chat history
 with st.sidebar:
@@ -244,8 +251,8 @@ if prompt:
         except Exception as e:
             st.error(f'오류가 발생했습니다. : {str(e)}')
 
-        # 대화 내역 저장
-        save_chat_history(st.session_state.messages_displayed)
+# Save chat history after each interaction
+save_chat_history(st.session_state.messages)
 
 # 사이드바에 대화 내역 추가
 with st.sidebar:
