@@ -13,14 +13,19 @@ import pandas as pd
 from langchain.docstore.document import Document
 import json
 from datetime import  datetime
-
+from langchain.prompts import (
+    SystemMessagePromptTemplate,
+    ChatPromptTemplate
+)
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
 
 load_dotenv()
 os.environ['OPENAI_API_KEY'] = os.getenv('OPENAI_API_KEY')
 
 # gpt 4o 모델 설정
 llm = ChatOpenAI(
-    model = 'gpt-4o',
+    model = 'gpt-4o-mini',
     temperature = 0.5,
     openai_api_key = os.getenv('OPENAI_API_KEY')
 )
@@ -38,20 +43,24 @@ if 'messages_displayed' not in st.session_state:
     st.session_state.messages_displayed = []
 
 # 데이터 불러오기
-df_coin_high = pd.read_csv('coin_high.csv')
-df_coin_low = pd.read_csv('coin_low.csv')
-df_coin_volume = pd.read_csv('coin_volume.csv')
+df_coin_high = pd.read_csv('coin_high_new.csv')
+df_coin_low = pd.read_csv('coin_low_new.csv')
+df_coin_volume = pd.read_csv('coin_volume_new.csv')
 
-investing_path = 'C:\github\STFO\Investing_Data.json'
-hankyung_path = 'C:\github\STFO\Hankyung_Data.json'
+# investing_path = 'C:\github\STFO\Investing_Data.json'
+# hankyung_path = 'C:\github\STFO\Hankyung_Data.json'
 
-with open(investing_path,'r',encoding="utf-8") as file:
-    data1 = json.load(file) 
+# with open(investing_path,'r',encoding="utf-8") as file:
+#     data1 = json.load(file) 
 
-with open(hankyung_path,'r',encoding="utf-8") as file:
-    data2 = json.load(file) 
+# with open(hankyung_path,'r',encoding="utf-8") as file:
+#     data2 = json.load(file) 
 
-data_all = data1 + data2
+# data_all = data1 + data2
+
+news_docs_path = 'data_indexing.json'
+with open(news_docs_path,'r',encoding='utf-8') as file:
+    data_all = json.load(file)
 
 # Json을 faiss가 읽을 수 있는 document로 바꾸기
 documents = []
@@ -90,28 +99,33 @@ st.session_state.vectorstore = vectorstore
 
 input_message = st.chat_input('메세지를 입력하세요.')
 
-prompt = f"""
+system_prompt = (f"""
 너는 코인데이터와 신문기사를 바탕으로 물음에 정확하게 답변하는 애널리스트이다. 공신력있는 보고서 형태로 작성해줘
 <코인 데이터> : <고가 = {df_coin_high},저가 = {df_coin_low},거래량 = {df_coin_volume}>
-<질문>
-<{input_message}>
 """
+)
+
+prompt_template = system_prompt + "\nHuman: {question}\nAI:"
+
+prompt = PromptTemplate(template=prompt_template, input_variables=["question"])
+
+llm_chain = LLMChain(llm=llm, prompt=prompt)
 
 # 사용자 입력이 비어있지 않으면 처리
-if prompt:
+if input_message:
     # 사용자 메세지 기록
-    st.session_state.memory.chat_memory.add_user_message(prompt)
+    st.session_state.memory.chat_memory.add_user_message(input_message)
 
     try:
         retriever = st.session_state.vectorstore.as_retriever()
         chain = ConversationalRetrievalChain.from_llm(
-            llm=llm,
+            llm=llm_chain,
             retriever=retriever,
             memory=st.session_state.memory
         )
 
         # AI 응답 생성
-        response = chain({'question': prompt})
+        response = chain({'question': input_message})
         ai_response = response['answer']
 
         # AI 메세지 기록
