@@ -33,7 +33,6 @@ def load_chat_history():
         return db.get("messages", [])
 
 
-# Save chat history to shelve file
 def save_chat_history(messages):
     with shelve.open("chat_history") as db:
         db["messages"] = messages
@@ -220,7 +219,7 @@ prompt = st.text_input('메시지를 입력하세요.', key='user_input', placeh
 
 if prompt:
     if st.session_state.vector_store is None:
-        st.error('다시 입력해주세요!.')
+        st.error('다시 입력해주세요!')
     else:
         # 사용자 메시지 기록
         st.session_state.memory.chat_memory.add_user_message(prompt)
@@ -245,18 +244,18 @@ if prompt:
         except Exception as e:
             st.error(f'오류가 발생했습니다. : {str(e)}')
 
-# 대화 내역 저장
-save_chat_history(st.session_state.messages)
+        # 대화 내역 저장
+        save_chat_history(st.session_state.messages_displayed)
 
 # 사이드바에 대화 내역 추가
 with st.sidebar:
     st.markdown('### 대화 내역')
 
     # 대화 내역 출력 (최신 대화부터)
-    for message in reversed(st.session_state.messages_displayed):
-        if message['role'] == 'assistant':
-            st.markdown(f"**AI**: {message['content']}")
-        else:
+    for message in st.session_state.messages_displayed:
+        if message['role'] == 'user':
             st.markdown(f"**User**: {message['content']}")
+        else:
+            st.markdown(f"**AI**: {message['content']}")
             
 # <a href="https://www.flaticon.com/free-icons/bitcoin" title="bitcoin icons">Bitcoin icons created by Freepik - Flaticon</a>
