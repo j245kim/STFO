@@ -11,6 +11,8 @@ import os
 from dotenv import load_dotenv
 import bs4
 from langchain_core.documents import Document
+import shelve
+
 
 # 데이터 불러오기
 with open(r'News_Data.json', 'r', encoding='utf-8') as f:
@@ -24,6 +26,27 @@ llm = ChatOpenAI(
     temperature=0.2,
     openai_api_key=os.getenv('OPENAI_API_KEY')
 )
+
+# Load chat history from shelve file
+def load_chat_history():
+    with shelve.open("chat_history") as db:
+        return db.get("messages", [])
+
+
+# Save chat history to shelve file
+def save_chat_history(messages):
+    with shelve.open("chat_history") as db:
+        db["messages"] = messages
+
+# Initialize or load chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = load_chat_history()
+
+# Sidebar with a button to delete chat history
+with st.sidebar:
+    if st.button("Delete Chat History"):
+        st.session_state.messages = []
+        save_chat_history([])
 
 # 타이틀
 st.markdown("""
