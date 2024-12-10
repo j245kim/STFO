@@ -221,3 +221,5 @@ if prompt:
 
         except Exception as e:
             st.error(f'오류가 발생했습니다. : {str(e)}')
+
+# <a href="https://www.flaticon.com/free-icons/bitcoin" title="bitcoin icons">Bitcoin icons created by Freepik - Flaticon</a>
