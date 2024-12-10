@@ -245,4 +245,18 @@ if prompt:
         except Exception as e:
             st.error(f'오류가 발생했습니다. : {str(e)}')
 
+# 대화 내역 저장
+save_chat_history(st.session_state.messages)
+
+# 사이드바에 대화 내역 추가
+with st.sidebar:
+    st.markdown('### 대화 내역')
+
+    # 대화 내역 출력 (최신 대화부터)
+    for message in reversed(st.session_state.messages_displayed):
+        if message['role'] == 'assistant':
+            st.markdown(f"**AI**: {message['content']}")
+        else:
+            st.markdown(f"**User**: {message['content']}")
+            
 # <a href="https://www.flaticon.com/free-icons/bitcoin" title="bitcoin icons">Bitcoin icons created by Freepik - Flaticon</a>
