@@ -151,8 +151,8 @@ st.markdown("""
     <div class="prompt-box">
         <h3>📝 추천 프롬프트</h3>
         <div class="prompt-item"><span>1) 💹</span> 암호화폐 시장의 최신 동향에 대해 알려줘</div>
-        <div class="prompt-item"><span>2) 📊</span> 비트코인 가격 예측에 대해 말해줘</div>
-        <div class="prompt-item"><span>3) 🤔</span> 김진우의 비밀을 설명해줘!</div>
+        <div class="prompt-item"><span>2) 📊</span> 비트코인과 트럼프 당선 상관성을 보고서로 써줘</div>
+        <div class="prompt-item"><span>3) 🤔</span> 비트코인과 계엄령의 상관성 보고서로 써줘</div>
     </div>
 """, unsafe_allow_html=True)
 
