@@ -271,11 +271,13 @@ if prompt:
             # 대화 내역 저장
             save_chat_history(st.session_state.messages)
 
-            # 대화 표시
+
+            # 대화 내용 표시
             with st.chat_message("user"):
                 st.markdown(prompt)
             with st.chat_message("assistant"):
-                st.markdown(ai_response)
+                placeholder = st.empty()  # Placeholder 생성
+                placeholder.markdown(ai_response)
 
         except Exception as e:
             st.error(f"오류가 발생했습니다: {e}")
