@@ -211,14 +211,6 @@ vectorstore = FAISS.from_documents(documents = docs + split_texts, embedding = e
 
 st.session_state.vectorstore = vectorstore
 
-template = ("""
-너는 코인데이터와 신문기사를 바탕으로 물음에 정확하게 답변하는 애널리스트이다. 공신력있는 보고서 형태로 작성해줘
-            Context: {context}
-            Question: {question}
-            Answer:
-"""
-)
-
 # --------------------------------------------------------
 msgs = StreamlitChatMessageHistory(key="special_app_key")
 
