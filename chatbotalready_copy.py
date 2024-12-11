@@ -1,26 +1,30 @@
-import streamlit as st
+# 라이브러리
+# 파이썬 표준 라이브러리
+import os
+import json
+from datetime import  datetime
+from operator import itemgetter
+
+# 파이썬 서드파티 라이브러리
+from dotenv import load_dotenv
 import pandas as pd
+import streamlit as st
+
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.embeddings.openai import OpenAIEmbeddings
-from langchain.chains import ConversationalRetrievalChain, LLMChain
 from langchain_openai import ChatOpenAI
-
-import os
-from dotenv import load_dotenv
-import pandas as pd
 from langchain.docstore.document import Document
-import json
-from datetime import  datetime
-from langchain.prompts import PromptTemplate
+from langchain_community.chat_message_histories import StreamlitChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.prompts import ChatPromptTemplate
 
+
+
+# 전역 변수 및 환경 설정
 load_dotenv()
 openai_api_key = os.getenv('OPENAI_API_KEY')
 os.environ['OPENAI_API_KEY'] = openai_api_key
-
-
-
-
 
 # 타이틀
 st.title('가상화폐')
@@ -45,10 +49,6 @@ for timestamp, row in df_coin_high.iterrows():
     markdown_docs.append(markdown_doc)
 
 docs = [Document(page_content=doc) for doc in markdown_docs]
-
-
-
-
 
 news_docs_path = 'data_indexing.json'
 with open(news_docs_path,'r',encoding='utf-8') as file:
@@ -91,57 +91,63 @@ st.session_state.vectorstore = vectorstore
 
 template = ("""
 너는 코인데이터와 신문기사를 바탕으로 물음에 정확하게 답변하는 애널리스트이다. 공신력있는 보고서 형태로 작성해줘
+            Context: {context}
             Question: {question}
             Answer:
 """
 )
 
 # --------------------------------------------------------
-
-# Optionally, specify your own session_state key for storing messages
-from langchain_community.chat_message_histories import StreamlitChatMessageHistory
-
 msgs = StreamlitChatMessageHistory(key="special_app_key")
 
 if len(msgs.messages) == 0:
     msgs.add_ai_message("무엇을 도와드릴까요?")
 
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_openai import ChatOpenAI
+prompt = ChatPromptTemplate.from_template(
+    """너는 코인데이터와 신문기사를 바탕으로 물음에 정확하게 답변하는 애널리스트이다. 공신력있는 보고서 형태로 작성해줘
 
-prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", template),
-        MessagesPlaceholder(variable_name="history"),
-        ("human", "{question}"),
-    ]
+#Previous Chat History:
+{chat_history}
+
+#Question: 
+{question} 
+
+#Context: 
+{context} 
+
+#Answer:"""
 )
-model = ChatOpenAI(
-                        model = 'gpt-4o-mini',
-                        temperature = 0.5,
-                        openai_api_key = openai_api_key
-                    )
+
+llm = ChatOpenAI(model_name="gpt-4o", temperature=0)
 retriever = st.session_state.vectorstore.as_retriever()
-chain = prompt | model | retriever
+
+chain = (
+    {
+        "context": itemgetter("question") | retriever,
+        "question": itemgetter("question"),
+        "chat_history": itemgetter("chat_history"),
+    }
+    | prompt
+    | llm
+
+)
 
 chain_with_history = RunnableWithMessageHistory(
     chain,
     lambda session_id: msgs,  # Always return the instance created earlier
     input_messages_key='question',
-    history_messages_key="history",
+    history_messages_key="chat_history",
 )
 
-import streamlit as st
-
+# 메세지 출력
 for msg in msgs.messages:
     st.chat_message(msg.type).write(msg.content)
 
-if prompt := st.chat_input():
-    st.chat_message("human").write(prompt)
+if input_text := st.chat_input():
+    st.chat_message("human").write(input_text)
 
     # As usual, new messages are added to StreamlitChatMessageHistory when the Chain is called.
     config = {"configurable": {"session_id": "any"}}
-    response = chain_with_history.invoke({"question": prompt}, config)
+    response = chain_with_history.invoke({"question": input_text}, config)
     st.chat_message("ai").write(response.content)
 # --------------------------------------------------------
