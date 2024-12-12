@@ -168,10 +168,18 @@ if 'messages_displayed' not in st.session_state:
 
 # 뉴스 로드
 docs = [
+<<<<<<< HEAD
     Document(page_content=news_info['news_content'], metadata={"source": news_info['news_url']})
     for news_info in data_json
 ]
 splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+=======
+        Document(page_content=news_info['news_content'], metadata={"source": news_info['news_url'], "title": news_info['news_title'],
+                                                                   "date": news_info['news_first_upload_time']})
+            for news_info in data_json]
+
+splitter = CharacterTextSplitter(chunk_size=100, chunk_overlap=10)
+>>>>>>> f867fbbccbe1a78da0852eff07ad75aa1de7ab12
 split_texts = splitter.split_documents(docs)
 
 # 임베딩
