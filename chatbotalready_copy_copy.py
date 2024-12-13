@@ -27,6 +27,10 @@ from langchain_core.prompts import ChatPromptTemplate
 load_dotenv()
 openai_api_key = os.getenv('OPENAI_API_KEY')
 os.environ['OPENAI_API_KEY'] = openai_api_key
+os.environ["LANGCHAIN_TRACING_V2"] = "true"
+os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
+os.environ["LANGCHAIN_PROJECT"] = "LangChain 프로젝트명"
+os.environ["LANGCHAIN_API_KEY"] = "LangChain API KEY 입력"
 
 # 타이틀
 st.title('가상화폐')
