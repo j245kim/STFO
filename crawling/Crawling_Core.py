@@ -60,6 +60,8 @@ class Crawling:
         self.min_delay = min_delay # request 요청 후 잠깐동안 넣을 딜레이 최소 시간
         self.max_delay = max_delay # request 요청 후 잠깐동안 넣을 딜레이 최소 시간
         self.request_get = partial(requests.get, headers=self.headers, allow_redirects=self.allow_redirects, timeout=self.timeout)
+
+        self.__websites = set(('investing',))
         self.crawlings = []
     
     def request_html(self, url: str) -> str | None:
