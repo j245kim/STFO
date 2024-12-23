@@ -1,6 +1,5 @@
 # !pip install httpx
 # !pip install beautifulsoup4
-# !pip install tqdm
 
 # 파이썬 표준 라이브러리
 import os
@@ -12,13 +11,11 @@ import asyncio
 import logging
 import traceback
 from datetime import datetime
-from functools import partial
 from concurrent import futures
 
 # 파이썬 서드파티 라이브러리
 import httpx
 from bs4 import BeautifulSoup
-from tqdm import tqdm
 
 
 def sync_request(
@@ -38,6 +35,7 @@ def sync_request(
         {
             "html": HTML 문서 정보, str | None
             "response_reason": 응답 결과 이유, str | None
+            "response_history": 수행된 redirect 응답 목록, list[str]
         }
     """
 
@@ -57,6 +55,7 @@ def sync_request(
     # 응답 요청이 실패했으면 메세지 출력
     if result['html'] is None:
         result['response_reason'] = response.reason_phrase
+    result['response_history'] = response.history
     
     return result
 
@@ -78,6 +77,7 @@ async def async_request(
         {
             "html": HTML 문서 정보, str | None
             "response_reason": 응답 결과 이유, str | None
+            "response_history": 수행된 redirect 응답 목록, list[str]
         }
     """
 
@@ -97,6 +97,7 @@ async def async_request(
     # 응답 요청이 실패했으면 메세지 출력
     if result['html'] is None:
         result['response_reason'] = response.reason_phrase
+    result['response_history'] = response.history
     
     return result
 
@@ -145,7 +146,7 @@ async def news_crawling(
     soup = BeautifulSoup(result['html'], 'html.parser')
 
     match website:
-        case 'inveseting':
+        case 'investing':
             # 1. 뉴스 데이터의 제목
             title = soup.find('h1', id='articleTitle')
             title = title.text.strip(' \t\n\r\f\v')
@@ -163,6 +164,8 @@ async def news_crawling(
                 ap = 'PM'
 
             first_upload_time = y_m_d + ' ' + ap + ' ' + first_upload_time_list[4]
+            first_upload_time = datetime.strptime(first_upload_time, '%Y-%m-%d %p %I:%M')
+            first_upload_time = datetime.strftime(first_upload_time, '%Y-%m-%d %H:%M')
             last_upload_time = None
             
             # 3. 뉴스 데이터의 기사 작성자
@@ -170,6 +173,9 @@ async def news_crawling(
 
             # 4. 뉴스 데이터의 본문
             content = soup.find('div', id='article')
+
+            # 7. 비고
+            note = '해외 사이트'
         case 'cryptonews':
             pass
         case 'hankyung':
@@ -182,10 +188,10 @@ async def news_crawling(
 
             first_upload_time = upload_times[0].text
             first_upload_time = datetime.strptime(first_upload_time, '%Y.%m.%d %H:%M')
-            first_upload_time = datetime.strftime(first_upload_time, '%Y-%m-%d %p %I:%M')
+            first_upload_time = datetime.strftime(first_upload_time, '%Y-%m-%d %H:%M')
             last_upload_time = upload_times[1].text
             last_upload_time = datetime.strptime(last_upload_time, '%Y.%m.%d %H:%M')
-            last_upload_time = datetime.strftime(last_upload_time, '%Y-%m-%d %p %I:%M')
+            last_upload_time = datetime.strftime(last_upload_time, '%Y-%m-%d %H:%M')
 
             # 3. 뉴스 데이터의 기사 작성자
             author_list = soup.find_all('div', {"class": "author link subs_author_list"})
@@ -194,6 +200,9 @@ async def news_crawling(
 
             # 4. 뉴스 데이터의 본문
             content = soup.find("div", id="articletxt")
+
+            # 7. 비고
+            note = '국내 사이트'
         case 'bloomingbit':
             pass
         case 'coinreaders':
@@ -202,10 +211,6 @@ async def news_crawling(
             pass
         case 'blockstreet':
             pass
-    
-
-    # 7. 비고
-    note = None
 
     info['news_title'] = title
     info['news_first_upload_time'] = first_upload_time
@@ -229,16 +234,20 @@ async def async_main(
     async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
         crawl_list = [news_crawling(url=url, category=category, website=website, client=async_client) for url in url_list]
         result = await asyncio.gather(*crawl_list)
+
     return result
 
 
 def investing(
+                end_datetime: str, format: str,
                 headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
                 encoding: str = 'utf-8', max_retry: int = 10, min_delay: int | float = 0.55, max_delay: int | float = 1.55
                 ) -> list[dict[str, str, None]]:
     """investing 사이트를 크롤링 하는 함수
 
     Args:
+        end_datetime: 크롤링할 마지막 시각
+        format: 시각 포맷
         headers: 식별 정보
         follow_redirects: 리다이렉트 허용 여부
         timeout: 응답 대기 허용 시간
@@ -270,21 +279,26 @@ def investing(
     """
 
     web_page = 'https://kr.investing.com/news/cryptocurrency-news'
-    start = 1
-    get_page_cnt = 30
-    end = start + get_page_cnt
     investing_results = []
+    page = 0
+    end_date = datetime.strptime(end_datetime, format)
+    nonstop = True
 
-    for i in tqdm(range(start, end), mininterval=1, miniters=1):
+    while nonstop:
+        page += 1
         sync_client = httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding)
         result = sync_request(url=web_page, client=sync_client)
 
-        if result['html'] is None:
+        # html 문서 불러오기에 실패했으면 다음 페이지로 넘기기
+        if result['html'] is None or result['response_reason'] is not None:
             print()
-            print(f'{i}번 페이지의 HTML 문서 정보를 불러오는데 실패했습니다.')
-            print(traceback.format_exc())
-            web_page = f'https://kr.investing.com/news/cryptocurrency-news/{i + 1}'
+            print(f'{page}번 페이지의 HTML 문서 정보를 불러오는데 실패했습니다.')
+            web_page = f'https://kr.investing.com/news/cryptocurrency-news/{page + 1}'
             continue
+        # redirect를 했으면 최종 페이지까지 갔다는 것이므로 종료
+        if result['response_history']:
+            nonstop = False
+            break
 
         soup = BeautifulSoup(result['html'], 'html.parser')
         url_tag_list = soup.find_all('article', {"data-test": "article-item"})
@@ -292,10 +306,14 @@ def investing(
         result = asyncio.run(async_main(url_list=url_list, category='암호화폐', website='investing',
                                         headers=headers, follow_redirects=follow_redirects, timeout=timeout, encoding=encoding))
 
+        while result and (datetime.strptime(result[-1]['news_first_upload_time'], format) < end_date):
+            nonstop = False
+            del result[-1]
+
         investing_results.extend(result)
 
         time.sleep(random.uniform(min_delay, max_delay))
-        web_page = f'https://kr.investing.com/news/cryptocurrency-news/{i + 1}'
+        web_page = f'https://kr.investing.com/news/cryptocurrency-news/{page + 1}'
         sync_client.close()
     
     return investing_results
@@ -315,7 +333,6 @@ if __name__ == '__main__':
     min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
     
-    result = investing(headers=headers)
+    result = investing(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers)
 
-    print(result)
-    print(len(result))
+    print(result[-1])
