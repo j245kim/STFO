@@ -24,7 +24,7 @@ from bs4 import BeautifulSoup
 def sync_request(
                 url: str, client: httpx.Client, max_retry: int = 10,
                 min_delay: int | float = 0.55, max_delay: int | float = 1.55
-                 ) -> dict[str, str, None]:
+                 ) -> dict[str, str, httpx.Response, None]:
     """동기로 HTML 문서 정보를 불러오는 함수
 
     Args:
@@ -38,7 +38,7 @@ def sync_request(
         {
             "html": HTML 문서 정보, str | None
             "response_reason": 응답 결과 이유, str | None
-            "response_history": 수행된 redirect 응답 목록, list[str]
+            "response_history": 수행된 redirect 응답 목록, list[Response]
         }
     """
 
@@ -66,7 +66,7 @@ def sync_request(
 async def async_request(
                         url: str, client: httpx.AsyncClient, max_retry: int = 10,
                         min_delay: int | float = 0.55, max_delay: int | float = 1.55
-                        ) -> dict[str, str, None]:
+                        ) -> dict[str, str, httpx.Response, None]:
     """비동기로 HTML 문서 정보를 불러오는 함수
 
     Args:
@@ -80,7 +80,7 @@ async def async_request(
         {
             "html": HTML 문서 정보, str | None
             "response_reason": 응답 결과 이유, str | None
-            "response_history": 수행된 redirect 응답 목록, list[str]
+            "response_history": 수행된 redirect 응답 목록, list[Response]
         }
     """
 
@@ -194,8 +194,11 @@ async def news_crawling(
 
             # 3. 뉴스 데이터의 기사 작성자
             author_list = soup.find_all('div', {"class": "author link subs_author_list"})
-            author_list = map(lambda x: x.find("a").text, author_list)
-            author = ', '.join(author_list)
+            if author_list:
+                author_list = map(lambda x: x.find("a").text, author_list)
+                author = ', '.join(author_list)
+            else:
+                author = None
 
             # 4. 뉴스 데이터의 본문
             content = soup.find("div", id="articletxt")
