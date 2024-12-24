@@ -272,14 +272,15 @@ async def investing(
 
     while nonstop:
         page += 1
-        sync_client = httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding)
-        result = sync_request(url=web_page, client=sync_client)
+
+        with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
+            result = sync_request(url=web_page, client=sync_client)
+        web_page = f'https://kr.investing.com/news/cryptocurrency-news/{page + 1}'
 
         # html 문서 불러오기에 실패했으면 다음 페이지로 넘기기
         if result['html'] is None or result['response_reason'] is not None:
             print()
             print(f'{page}번 페이지의 HTML 문서 정보를 불러오는데 실패했습니다.')
-            web_page = f'https://kr.investing.com/news/cryptocurrency-news/{page + 1}'
             continue
         # redirect를 했으면 최종 페이지까지 갔다는 것이므로 종료
         if result['response_history']:
@@ -308,10 +309,7 @@ async def investing(
             del result[-1]
 
         investing_results.extend(result)
-
         time.sleep(random.uniform(min_delay, max_delay))
-        web_page = f'https://kr.investing.com/news/cryptocurrency-news/{page + 1}'
-        sync_client.close()
     
     return investing_results
 
@@ -331,5 +329,4 @@ if __name__ == '__main__':
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
     
     result = asyncio.run(investing(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
-
     print(result[-1])
