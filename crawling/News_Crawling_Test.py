@@ -422,6 +422,4 @@ if __name__ == '__main__':
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
     
     # investing_result = asyncio.run(investing(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
-    hankyung_result = asyncio.run(hankyung(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
-    print(len(hankyung_result))
-    print(hankyung_result[-1])
+    # hankyung_result = asyncio.run(hankyung(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
