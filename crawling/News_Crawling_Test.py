@@ -1,5 +1,8 @@
-# !pip install httpx
-# !pip install beautifulsoup4
+# -*- coding: utf-8 -*-
+
+# 설치가 필요한 라이브러리
+# pip install httpx
+# pip install beautifulsoup4
 
 # 파이썬 표준 라이브러리
 import os
@@ -39,7 +42,7 @@ def sync_request(
         }
     """
 
-    result = {"html": None, "response_reason": None}
+    result = {"html": None, "response_reason": None, "response_history": None}
 
     for _ in range(max_retry):
         # 동기 client로 HTML GET
@@ -52,7 +55,7 @@ def sync_request(
         # 동기 제어 유지(멀티 프로세싱이라는 전제)
         time.sleep(random.uniform(min_delay, max_delay))
     
-    # 응답 요청이 실패했으면 메세지 출력
+    # 응답 요청이 실패했으면 기록 추가
     if result['html'] is None:
         result['response_reason'] = response.reason_phrase
     result['response_history'] = response.history
@@ -81,7 +84,7 @@ async def async_request(
         }
     """
 
-    result = {"html": None, "response_reason": None}
+    result = {"html": None, "response_reason": None, "response_history": None}
 
     for _ in range(max_retry):
         # 비동기 client로 HTML GET
@@ -94,7 +97,7 @@ async def async_request(
         # 비동기 코루틴 제어 양도
         await asyncio.sleep(random.uniform(min_delay, max_delay))
     
-    # 응답 요청이 실패했으면 메세지 출력
+    # 응답 요청이 실패했으면 기록 추가
     if result['html'] is None:
         result['response_reason'] = response.reason_phrase
     result['response_history'] = response.history
@@ -103,8 +106,7 @@ async def async_request(
 
 
 async def news_crawling(
-                        url:str, category: str, website: str, client: httpx.AsyncClient, max_retry: int = 10,
-                        min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                        url:str, category: str, website: str, client: httpx.AsyncClient
                         ) -> dict[str, str, None] | None:
     """뉴스 URL을 바탕으로 크롤링을 하는 함수
 
@@ -113,9 +115,6 @@ async def news_crawling(
         category: 뉴스 카테고리
         website: 웹사이트 이름
         client: httpx 비동기 클라이언트 객체
-        max_retry: HTML 문서 정보 불러오기에 실패했을 때 재시도할 최대 횟수
-        min_delay: 재시도 할 때 딜레이의 최소 시간
-        max_delay: 재시도 할 때 딜레이의 최대 시간
 
     Returns:
         {
@@ -138,7 +137,7 @@ async def news_crawling(
     info = {} # 뉴스 데이터 정보 Dictionary
 
     # 비동기로 HTML GET
-    result = await async_request(url=url, client=client, max_retry=max_retry, min_delay=min_delay, max_delay=max_delay)
+    result = await async_request(url=url, client=client)
     # HTML 문서 정보를 불러오는 것에 실패하면 None 반환
     if result['html'] is None:
         return None
@@ -225,23 +224,10 @@ async def news_crawling(
     return info
 
 
-async def async_main(
-                    url_list: list[str], category: str, website: str,
-                    headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90, encoding: str = 'utf-8',
-                    max_retry: int = 10, min_delay: int | float = 0.55, max_delay: int | float = 1.55
-                    ) -> list[dict[str, str, None]]:
-    
-    async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
-        crawl_list = [news_crawling(url=url, category=category, website=website, client=async_client) for url in url_list]
-        result = await asyncio.gather(*crawl_list)
-
-    return result
-
-
-def investing(
+async def investing(
                 end_datetime: str, format: str,
                 headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
-                encoding: str = 'utf-8', max_retry: int = 10, min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
                 ) -> list[dict[str, str, None]]:
     """investing 사이트를 크롤링 하는 함수
 
@@ -252,7 +238,6 @@ def investing(
         follow_redirects: 리다이렉트 허용 여부
         timeout: 응답 대기 허용 시간
         encoding: 인코딩 방법
-        max_retry: HTML 문서 정보 불러오기에 실패했을 때 재시도할 최대 횟수
         min_delay: 재시도 할 때 딜레이의 최소 시간
         max_delay: 재시도 할 때 딜레이의 최대 시간
 
@@ -302,10 +287,21 @@ def investing(
 
         soup = BeautifulSoup(result['html'], 'html.parser')
         url_tag_list = soup.find_all('article', {"data-test": "article-item"})
-        url_list = [url["href"] for url_tag in url_tag_list if ((url := url_tag.find('a')) is not None)]
-        result = asyncio.run(async_main(url_list=url_list, category='암호화폐', website='investing',
-                                        headers=headers, follow_redirects=follow_redirects, timeout=timeout, encoding=encoding))
+        url_list = [url_tag.find('a')["href"] for url_tag in url_tag_list]
 
+        async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
+            crawl_list = [news_crawling(url=url, category='암호화폐', website='investing', client=async_client) for url in url_list]
+            result = await asyncio.gather(*crawl_list)
+        
+        remove_none = []
+        for idx, res in enumerate(result):
+            if res is None:
+                print()
+                print(f'요청 실패한 데이터 : URL={url_list[idx]}, category=암호화폐, website=investing')
+            else:
+                remove_none.append(res)
+
+        result = remove_none
         while result and (datetime.strptime(result[-1]['news_first_upload_time'], format) < end_date):
             nonstop = False
             del result[-1]
@@ -333,6 +329,6 @@ if __name__ == '__main__':
     min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
     
-    result = investing(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers)
+    result = asyncio.run(investing(end_datetime='2024-11-01 18:00', format='%Y-%m-%d %H:%M', headers=headers))
 
     print(result[-1])
