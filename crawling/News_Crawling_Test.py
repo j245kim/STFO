@@ -224,10 +224,10 @@ async def news_crawling(
 
 
 async def investing(
-                end_datetime: str, format: str,
-                headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
-                encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
-                ) -> list[dict[str, str, None]]:
+                    end_datetime: str, format: str,
+                    headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
+                    encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                    ) -> list[dict[str, str, None]]:
     """investing 사이트를 크롤링 하는 함수
 
     Args:
@@ -263,10 +263,12 @@ async def investing(
     """
 
     web_page = 'https://kr.investing.com/news/cryptocurrency-news'
-    investing_results = []
+    category = '암호화폐'
+    website = 'investing'
     page = 0
     end_date = datetime.strptime(end_datetime, format)
     nonstop = True
+    investing_results = []
 
     while nonstop:
         page += 1
@@ -290,7 +292,7 @@ async def investing(
         url_list = [url_tag.find('a')["href"] for url_tag in url_tag_list]
 
         async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
-            crawl_list = [news_crawling(url=url, category='암호화폐', website='investing', client=async_client) for url in url_list]
+            crawl_list = [news_crawling(url=url, category=category, website=website, client=async_client) for url in url_list]
             async_result = await asyncio.gather(*crawl_list)
         
         # 요청이 실패했으면 제외
@@ -298,7 +300,7 @@ async def investing(
         for idx, res in enumerate(async_result):
             if res is None:
                 print()
-                print(f'요청 실패한 데이터 : URL={url_list[idx]}, category=암호화폐, website=investing')
+                print(f'요청 실패한 데이터 : URL={url_list[idx]}, category={category}, website={website}')
             else:
                 result.append(res)
 
@@ -312,6 +314,98 @@ async def investing(
     
     return investing_results
 
+
+async def hankyung(
+                    end_datetime: str, format: str,
+                    headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
+                    encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                    ) -> list[dict[str, str, None]]:
+    """hankyung 사이트를 크롤링 하는 함수
+
+    Args:
+        end_datetime: 크롤링할 마지막 시각
+        format: 시각 포맷
+        headers: 식별 정보
+        follow_redirects: 리다이렉트 허용 여부
+        timeout: 응답 대기 허용 시간
+        encoding: 인코딩 방법
+        min_delay: 재시도 할 때 딜레이의 최소 시간
+        max_delay: 재시도 할 때 딜레이의 최대 시간
+
+    Returns:
+        [
+            {
+                "news_title": 뉴스 제목, str
+                "news_first_upload_time": 뉴스 최초 업로드 시각, str | None
+                "newsfinal_upload_time": 뉴스 최종 수정 시각, str | None
+                "news_author": 뉴스 작성자, str | None
+                "news_content": 뉴스 본문, str
+                "news_url": 뉴스 URL, str
+                "news_category": 뉴스 카테고리, str
+                "news_website": 뉴스 웹사이트, str
+                "note": 비고, str | None
+            },
+            {
+                                    ...
+            },
+                                    .
+                                    .
+                                    .
+        ]
+    """
+
+    category = '암호화폐'
+    website = 'hankyung'
+    page = 0
+    end_date = datetime.strptime(end_datetime, format)
+    nonstop = True
+    hankyung_results = []
+
+    while nonstop:
+        page += 1
+        web_page = f'https://www.hankyung.com/koreamarket/news/crypto?page={page}'
+
+        with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
+            sync_result = sync_request(url=web_page, client=sync_client)
+        
+        # html 문서 불러오기에 실패했으면 다음 페이지로 넘기기
+        if sync_result['html'] is None or sync_result['response_reason'] != 'OK':
+            print()
+            print(f'{page}번 페이지의 HTML 문서 정보를 불러오는데 실패했습니다.')
+            continue
+
+        soup = BeautifulSoup(sync_result['html'], 'html.parser')
+        url_tag_list = soup.find_all('h2', {"class": "news-tit"})
+
+        # url_tag_list가 비어있으면 최종 페이지까지 갔다는 것이므로 종료
+        if not url_tag_list:
+            nonstop = False
+            break
+
+        url_list = [url_tag.find('a')["href"] for url_tag in url_tag_list]
+
+        async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
+            crawl_list = [news_crawling(url=url, category=category, website=website, client=async_client) for url in url_list]
+            async_result = await asyncio.gather(*crawl_list)
+        
+        # 요청이 실패했으면 제외
+        result = []
+        for idx, res in enumerate(async_result):
+            if res is None:
+                print()
+                print(f'요청 실패한 데이터 : URL={url_list[idx]}, category={category}, website={website}')
+            else:
+                result.append(res)
+        
+        # end_date 이후가 아니면은 제거
+        while result and (datetime.strptime(result[-1]['news_first_upload_time'], format) < end_date):
+            nonstop = False
+            del result[-1]
+
+        hankyung_results.extend(result)
+        time.sleep(random.uniform(min_delay, max_delay))
+    
+    return hankyung_results
 
 
 if __name__ == '__main__':
@@ -327,5 +421,7 @@ if __name__ == '__main__':
     min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
     
-    result = asyncio.run(investing(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
-    print(result[-1])
+    # investing_result = asyncio.run(investing(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
+    hankyung_result = asyncio.run(hankyung(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
+    print(len(hankyung_result))
+    print(hankyung_result[-1])
