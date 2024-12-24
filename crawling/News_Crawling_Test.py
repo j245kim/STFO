@@ -175,8 +175,6 @@ async def news_crawling(
 
             # 7. 비고
             note = '해외 사이트'
-        case 'cryptonews':
-            pass
         case 'hankyung':
             # 1. 뉴스 데이터의 제목
             title = soup.find('h1', {"class": "headline"})
@@ -332,6 +330,6 @@ if __name__ == '__main__':
     min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
     
-    result = asyncio.run(investing(end_datetime='2024-11-01 18:00', format='%Y-%m-%d %H:%M', headers=headers))
+    result = asyncio.run(investing(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
 
     print(result[-1])
