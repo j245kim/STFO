@@ -55,9 +55,8 @@ def sync_request(
         # 동기 제어 유지(멀티 프로세싱이라는 전제)
         time.sleep(random.uniform(min_delay, max_delay))
     
-    # 응답 요청이 실패했으면 기록 추가
-    if result['html'] is None:
-        result['response_reason'] = response.reason_phrase
+    # 응답 기록 추가
+    result['response_reason'] = response.reason_phrase
     result['response_history'] = response.history
     
     return result
@@ -97,9 +96,8 @@ async def async_request(
         # 비동기 코루틴 제어 양도
         await asyncio.sleep(random.uniform(min_delay, max_delay))
     
-    # 응답 요청이 실패했으면 기록 추가
-    if result['html'] is None:
-        result['response_reason'] = response.reason_phrase
+    # 응답 기록 추가
+    result['response_reason'] = response.reason_phrase
     result['response_history'] = response.history
     
     return result
@@ -274,36 +272,37 @@ async def investing(
         page += 1
 
         with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
-            result = sync_request(url=web_page, client=sync_client)
+            sync_result = sync_request(url=web_page, client=sync_client)
         web_page = f'https://kr.investing.com/news/cryptocurrency-news/{page + 1}'
 
+        # redirect를 했으면 최종 페이지까지 갔다는 것이므로 종료
+        if sync_result['response_history']:
+            nonstop = False
+            break
         # html 문서 불러오기에 실패했으면 다음 페이지로 넘기기
-        if result['html'] is None or result['response_reason'] is not None:
+        if sync_result['html'] is None or sync_result['response_reason'] != 'OK':
             print()
             print(f'{page}번 페이지의 HTML 문서 정보를 불러오는데 실패했습니다.')
             continue
-        # redirect를 했으면 최종 페이지까지 갔다는 것이므로 종료
-        if result['response_history']:
-            nonstop = False
-            break
 
-        soup = BeautifulSoup(result['html'], 'html.parser')
+        soup = BeautifulSoup(sync_result['html'], 'html.parser')
         url_tag_list = soup.find_all('article', {"data-test": "article-item"})
         url_list = [url_tag.find('a')["href"] for url_tag in url_tag_list]
 
         async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
             crawl_list = [news_crawling(url=url, category='암호화폐', website='investing', client=async_client) for url in url_list]
-            result = await asyncio.gather(*crawl_list)
+            async_result = await asyncio.gather(*crawl_list)
         
-        remove_none = []
-        for idx, res in enumerate(result):
+        # 요청이 실패했으면 제외
+        result = []
+        for idx, res in enumerate(async_result):
             if res is None:
                 print()
                 print(f'요청 실패한 데이터 : URL={url_list[idx]}, category=암호화폐, website=investing')
             else:
-                remove_none.append(res)
+                result.append(res)
 
-        result = remove_none
+        # end_date 이후가 아니면은 제거
         while result and (datetime.strptime(result[-1]['news_first_upload_time'], format) < end_date):
             nonstop = False
             del result[-1]
