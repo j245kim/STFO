@@ -37,7 +37,7 @@ def sync_request(
     Return:
         {
             "html": HTML 문서 정보, str | None
-            "response_reason": 응답 결과 이유, str | None
+            "response_reason": 응답 결과 이유, str
             "response_history": 수행된 redirect 응답 목록, list[Response]
         }
     """
@@ -78,7 +78,7 @@ async def async_request(
     Return:
         {
             "html": HTML 문서 정보, str | None
-            "response_reason": 응답 결과 이유, str | None
+            "response_reason": 응답 결과 이유, str
             "response_history": 수행된 redirect 응답 목록, list[Response]
         }
     """
