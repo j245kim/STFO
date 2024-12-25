@@ -559,35 +559,41 @@ async def bloomingbit(
     nonstop = True
     bloomingbit_results = []
 
-    total_wait = 10
-    options = Options()
-    # 1. 브라우저 창 숨기기 (Headless 모드)
-    options.add_argument("--headless")
-    # 2. 사용자 에이전트 변경 (옵션)
-    options.add_argument(f'user-agent={headers["User-Agent"]}')
-    # 3. 불필요한 로그 최소화
-    options.add_argument("--log-level=3")
-    # 4. 알림 비활성화
-    options.add_argument('--disable-notifications')
+    try:
+        total_wait = 60
+        options = Options()
+        # 1. 브라우저 창 숨기기 (Headless 모드)
+        options.add_argument("--headless")
+        # 2. 사용자 에이전트 변경 (옵션)
+        options.add_argument(f'user-agent={headers["User-Agent"]}')
+        # 3. 불필요한 로그 최소화
+        options.add_argument("--log-level=3")
+        # 4. 알림 비활성화
+        options.add_argument('--disable-notifications')
 
-    # WebDriver 생성 (webdriver-manager 사용)
-    service = Service(ChromeDriverManager().install())  # 크롬드라이버 자동 설치 및 경로 설정
-    driver = webdriver.Chrome(service=service, options=options)
-    # 모든 driver 작업들에 대해 최대 total_wait초까지 대기
-    driver.implicitly_wait(total_wait)
+        # WebDriver 생성 (webdriver-manager 사용)
+        service = Service(ChromeDriverManager().install())  # 크롬드라이버 자동 설치 및 경로 설정
+        driver = webdriver.Chrome(service=service, options=options)
+        # 모든 driver 작업들에 대해 최대 total_wait초까지 대기
+        driver.implicitly_wait(total_wait)
 
-    # 블루밍비트 웹사이트 열기
-    driver.get(bloomingbit_website)
-    # 블루밍비트 실시간 뉴스에서 전체 클릭
-    driver.find_element(By.XPATH, '//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button').click()
-    # 가장 최신 기사 번호를 추출
-    result = driver.find_element(By.XPATH, '//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]')
-    a_tag = result.find_elements(By.TAG_NAME, 'a')[-1]
-    href = a_tag.get_attribute("href")
-    last_number = re.split(pattern=r'/+', string=href)[-1]
-    last_number = int(last_number)
-    # driver 종료
-    driver.quit()
+        # 블루밍비트 웹사이트 열기
+        driver.get(bloomingbit_website)
+        # 블루밍비트 실시간 뉴스에서 전체 클릭
+        driver.find_element(By.XPATH, '//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button').click()
+        # 가장 최신 기사 번호를 추출
+        result = driver.find_element(By.XPATH, '//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]')
+        a_tag = result.find_elements(By.TAG_NAME, 'a')[-1]
+        href = a_tag.get_attribute("href")
+        last_number = re.split(pattern=r'/+', string=href)[-1]
+        last_number = int(last_number)
+        # driver 종료
+        driver.quit()
+    except Exception:
+        print()
+        print('selenium 동작 중 실패')
+        print(traceback.format_exc())
+        return bloomingbit_results
 
     while nonstop:
         first_url_number = last_number
