@@ -19,6 +19,11 @@ from concurrent import futures
 # 파이썬 서드파티 라이브러리
 import httpx
 from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.by import By
 
 
 def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M') -> str:
@@ -49,8 +54,8 @@ def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M')
             news_datetime = datetime.strptime(date_time, '%Y.%m.%d %H:%M')
             news_datetime = datetime.strftime(news_datetime, format)
         case 'bloomingbit':
-            date_time_list = date_time_list.replace('.', '')
-            date_time_list = date_time_list.split()[1:]
+            date_time = date_time.replace('.', '')
+            date_time_list = date_time.split()[1:]
             if date_time_list[3] == '오전':
                 date_time_list[3] = 'AM'
             else:
@@ -201,7 +206,7 @@ async def news_crawling(
             span = span.text.strip(' \t\n\r\f\v')
 
             first_upload_time = re.split(pattern=r'\s+\r\n\s+', string=span)[1]
-            first_upload_time = datetime_trans(website='investing', date_time=first_upload_time)
+            first_upload_time = datetime_trans(website=website, date_time=first_upload_time)
             last_upload_time = None
             
             # 3. 뉴스 데이터의 기사 작성자
@@ -221,9 +226,9 @@ async def news_crawling(
             upload_times = soup.find_all('span', {"class": "txt-date"})
 
             first_upload_time = upload_times[0].text
-            first_upload_time = datetime_trans(website='hankyung', date_time=upload_times[0].text)
+            first_upload_time = datetime_trans(website=website, date_time=upload_times[0].text)
             last_upload_time = upload_times[1].text
-            last_upload_time = datetime_trans(website='hankyung', date_time=upload_times[1].text)
+            last_upload_time = datetime_trans(website=website, date_time=upload_times[1].text)
 
 
             # 3. 뉴스 데이터의 기사 작성자
@@ -248,11 +253,11 @@ async def news_crawling(
             first_upload_time = soup.find("span", {"class": "_feedReporterWithDatePublished_createDate__pphI_"})
             if first_upload_time is not None:
                 first_upload_time = first_upload_time.text
-                first_upload_time = datetime_trans(website='hankyung', date_time=first_upload_time)
+                first_upload_time = datetime_trans(website=website, date_time=first_upload_time)
             last_upload_time = soup.find("span", {"class": "_feedReporterWithDatePublished_updateDate__xCxls"})
             if last_upload_time is not None:
                 last_upload_time = last_upload_time.text
-                last_upload_time = datetime_trans(website='hankyung', date_time=last_upload_time)
+                last_upload_time = datetime_trans(website=website, date_time=last_upload_time)
             
             # 3. 뉴스 데이터의 기사 작성자
             author_list = soup.find_all('span', {"class": "_feedReporterWithDatePublished_newsReporter__nRjik"})
@@ -519,11 +524,76 @@ async def bloomingbit(
         ]
     """
 
+    bloomingbit_website = 'https://bloomingbit.io/ko/feed'
+    get_cnt = 20
     category = ''
     website = 'bloomingbit'
     end_date = datetime.strptime(end_datetime, format)
     nonstop = True
     bloomingbit_results = []
+
+    total_wait = 10
+    options = Options()
+    # 1. 브라우저 창 숨기기 (Headless 모드)
+    options.add_argument("--headless")
+    # 2. 사용자 에이전트 변경 (옵션)
+    options.add_argument(f'user-agent={headers["User-Agent"]}')
+    # 3. 불필요한 로그 최소화
+    options.add_argument("--log-level=3")
+    # 4. 알림 비활성화
+    options.add_argument('--disable-notifications')
+
+    # WebDriver 생성 (webdriver-manager 사용)
+    service = Service(ChromeDriverManager().install())  # 크롬드라이버 자동 설치 및 경로 설정
+    driver = webdriver.Chrome(service=service, options=options)
+    # 모든 driver 작업들에 대해 최대 10초까지 대기
+    driver.implicitly_wait(total_wait)
+
+    # 블루밍비트 웹사이트 열기
+    driver.get(bloomingbit_website)
+    # 블루밍비트 실시간 뉴스에서 전체 클릭
+    driver.find_element(By.XPATH, '//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button').click()
+    # 가장 최신 기사 번호를 추출
+    result = driver.find_element(By.XPATH, '//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]')
+    a_tag = result.find_elements(By.TAG_NAME, 'a').pop()
+    href = a_tag.get_attribute("href")
+    last_number = re.split(pattern=r'/+', string=href)[-1]
+    last_number = int(last_number)
+    # driver 종료
+    driver.quit()
+
+    while nonstop:
+        first_url_number = last_number
+        last_url_number = max(2, last_number - get_cnt)
+
+        last_number -= (get_cnt + 1)
+        if last_number <= 1:
+            nonstop = False
+        
+        url_list = [f'https://bloomingbit.io/ko/feed/news/{url}' for url in range(first_url_number, last_url_number - 1, -1)]
+    
+        async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
+            crawl_list = [news_crawling(url=url, category=category, website=website, client=async_client) for url in url_list]
+            async_result = await asyncio.gather(*crawl_list)
+        
+        # 요청이 실패했으면 제외
+        result = []
+        for idx, res in enumerate(async_result):
+            if res is None:
+                print()
+                print(f'요청 실패한 데이터 : URL={url_list[idx]}, category={category}, website={website}')
+            else:
+                result.append(res)
+        
+        # end_date 이후가 아니면은 제거
+        while result and (datetime.strptime(result[-1]['news_first_upload_time'], format) < end_date):
+            nonstop = False
+            del result[-1]
+
+        bloomingbit_results.extend(result)
+        time.sleep(random.uniform(min_delay, max_delay))
+    
+    return bloomingbit_results
 
 
 if __name__ == '__main__':
@@ -541,3 +611,4 @@ if __name__ == '__main__':
     
     # investing_result = asyncio.run(investing(end_datetime='2024-12-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
     # hankyung_result = asyncio.run(hankyung(end_datetime='2024-12-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
+    # bloomingbit_result = asyncio.run(bloomingbit(end_datetime='2024-12-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
