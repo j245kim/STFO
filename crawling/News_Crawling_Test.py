@@ -49,7 +49,15 @@ def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M')
             news_datetime = datetime.strptime(date_time, '%Y.%m.%d %H:%M')
             news_datetime = datetime.strftime(news_datetime, format)
         case 'bloomingbit':
-            pass
+            date_time_list = date_time_list.replace('.', '')
+            date_time_list = date_time_list.split()[1:]
+            if date_time_list[3] == '오전':
+                date_time_list[3] = 'AM'
+            else:
+                date_time_list[3] = 'PM'
+            news_datetime = '-'.join(date_time_list[:3]) + ' ' + date_time_list[3] + ' ' + date_time_list[4]
+            news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %p %I:%M')
+            news_datetime = datetime.strftime(news_datetime, format)
         case 'coinreaders':
             pass
         case 'dealsite':
@@ -202,7 +210,7 @@ async def news_crawling(
             # 4. 뉴스 데이터의 본문
             content = soup.find('div', id='article')
 
-            # 7. 비고
+            # 8. 비고
             note = '해외 사이트'
         case 'hankyung':
             # 1. 뉴스 데이터의 제목
@@ -229,10 +237,44 @@ async def news_crawling(
             # 4. 뉴스 데이터의 본문
             content = soup.find("div", id="articletxt")
 
-            # 7. 비고
+            # 8. 비고
             note = '국내 사이트'
         case 'bloomingbit':
-            pass
+            # 1. 뉴스 데이터의 제목
+            title = soup.find("h1", {"class": "_feedDetailContet_newsContentTitle__ftCYu"})
+            title = title.text.strip(' \t\n\r\f\v')
+
+            # 2. 뉴스 데이터의 최초 업로드 시각과 최종 수정 시각
+            first_upload_time = soup.find("span", {"class": "_feedReporterWithDatePublished_createDate__pphI_"})
+            if first_upload_time is not None:
+                first_upload_time = first_upload_time.text
+                first_upload_time = datetime_trans(website='hankyung', date_time=first_upload_time)
+            last_upload_time = soup.find("span", {"class": "_feedReporterWithDatePublished_updateDate__xCxls"})
+            if last_upload_time is not None:
+                last_upload_time = last_upload_time.text
+                last_upload_time = datetime_trans(website='hankyung', date_time=last_upload_time)
+            
+            # 3. 뉴스 데이터의 기사 작성자
+            author_list = soup.find_all('span', {"class": "_feedReporterWithDatePublished_newsReporter__nRjik"})
+            if author_list:
+                author_list = map(lambda x: x.text, author_list)
+                author = ', '.join(author_list)
+            else:
+                author = None
+            
+            # 4. 뉴스 데이터의 본문
+            content = soup.find("div", {"class": "_feedMainContent_feedDetailArticle__B_0Sy _feedMainContent_markdown__s5mjo"})
+
+            # 7. 뉴스 category
+            category = soup.find("h3", {"class": "_feedType_feedTypeLabel__DQpII"})
+
+            if category is None:
+                category = '전체 뉴스'
+            else:
+                category = category.text
+
+            # 8. 비고
+            note = '국내 사이트'
         case 'coinreaders':
             pass
         case 'dealsite':
@@ -436,6 +478,52 @@ async def hankyung(
         time.sleep(random.uniform(min_delay, max_delay))
     
     return hankyung_results
+
+
+async def bloomingbit(
+                    end_datetime: str, format: str,
+                    headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
+                    encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                    ) -> list[dict[str, str, None]]:
+    """bloomingbit 사이트를 크롤링 하는 함수
+
+    Args:
+        end_datetime: 크롤링할 마지막 시각
+        format: 시각 포맷
+        headers: 식별 정보
+        follow_redirects: 리다이렉트 허용 여부
+        timeout: 응답 대기 허용 시간
+        encoding: 인코딩 방법
+        min_delay: 재시도 할 때 딜레이의 최소 시간
+        max_delay: 재시도 할 때 딜레이의 최대 시간
+
+    Returns:
+        [
+            {
+                "news_title": 뉴스 제목, str
+                "news_first_upload_time": 뉴스 최초 업로드 시각, str | None
+                "newsfinal_upload_time": 뉴스 최종 수정 시각, str | None
+                "news_author": 뉴스 작성자, str | None
+                "news_content": 뉴스 본문, str
+                "news_url": 뉴스 URL, str
+                "news_category": 뉴스 카테고리, str
+                "news_website": 뉴스 웹사이트, str
+                "note": 비고, str | None
+            },
+            {
+                                    ...
+            },
+                                    .
+                                    .
+                                    .
+        ]
+    """
+
+    category = ''
+    website = 'bloomingbit'
+    end_date = datetime.strptime(end_datetime, format)
+    nonstop = True
+    bloomingbit_results = []
 
 
 if __name__ == '__main__':
