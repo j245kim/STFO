@@ -213,7 +213,36 @@ async def news_crawling(
             author = None
 
             # 4. 뉴스 데이터의 본문
-            content = soup.find('div', id='article')
+            try:
+                total_wait = 90
+                options = Options()
+
+                # 1. 브라우저 창 숨기기 (Headless 모드)
+                options.add_argument("--headless")
+                # 2. 사용자 에이전트 변경 (옵션)
+                user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+                options.add_argument(f'user-agent={user_agent}')
+                # 3. 불필요한 로그 최소화
+                options.add_argument("--log-level=3")
+                # 4. 알림 비활성화
+                options.add_argument('--disable-notifications')
+
+                # WebDriver 생성 (webdriver-manager 사용)
+                service = Service(ChromeDriverManager().install())  # 크롬드라이버 자동 설치 및 경로 설정
+                driver = webdriver.Chrome(service=service, options=options)
+                # 모든 driver 작업들에 대해 최대 total_wait초까지 대기
+                driver.implicitly_wait(total_wait)
+
+                # 본문 가져오기
+                driver.get(url)
+                content = driver.find_element(By.XPATH, '//*[@id="article"]')
+                content = content.get_attribute('outerHTML')
+                # driver 종료
+                driver.quit()
+            except Exception:
+                print()
+                print('selenium 동작 중 실패')
+                content = None
 
             # 8. 비고
             note = '해외 사이트'
@@ -643,6 +672,7 @@ if __name__ == '__main__':
     min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
     
-    # investing_result = asyncio.run(investing(end_datetime='2024-12-20 00:00', format='%Y-%m-%d %H:%M', headers=headers))
+    investing_result = asyncio.run(investing(end_datetime='2024-12-20 00:00', format='%Y-%m-%d %H:%M', headers=headers))
+    print(investing_result[-1])
     # hankyung_result = asyncio.run(hankyung(end_datetime='2024-12-20 00:00', format='%Y-%m-%d %H:%M', headers=headers))
     # bloomingbit_result = asyncio.run(bloomingbit(end_datetime='2024-12-20 00:00', format='%Y-%m-%d %H:%M', headers=headers))
