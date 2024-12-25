@@ -18,18 +18,14 @@ max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
 
 clinet = httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding)
 
-url = 'https://cryptonews.com/kr/news/south-korean-crypto-exchange-upbit-to-delist-bitcoin-gold/'
+url = 'https://www.hankyung.com/article/2024122577485'
 response = clinet.get(url)
 
 html = response.text
 
 soup = BeautifulSoup(html, 'html.parser')
 
-# 2. 뉴스 데이터의 최초 업로드 시각과 최종 수정 시각
-last_upload_time = soup.find("div", {"class": "single-post-new__author-top"})
-last_upload_time = last_upload_time.find("time")
-last_upload_time = last_upload_time.text
-
-date_time = re.sub(pattern=r'[월,]', repl='', string=last_upload_time)
-m, d, y, hm = date_time.split()[:-1]
-print(f'{y}-{m}-{d} {hm}')
+content = soup.find("div", id="articletxt")
+content = content.prettify()
+print(content)
+print(type(content))

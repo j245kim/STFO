@@ -241,6 +241,7 @@ async def news_crawling(
 
             # 4. 뉴스 데이터의 본문
             content = soup.find("div", id="articletxt")
+            content = content.prettify()
 
             # 8. 비고
             note = '국내 사이트'
@@ -269,6 +270,7 @@ async def news_crawling(
             
             # 4. 뉴스 데이터의 본문
             content = soup.find("div", {"class": "_feedMainContent_feedDetailArticle__B_0Sy _feedMainContent_markdown__s5mjo"})
+            content = content.prettify()
 
             # 7. 뉴스 category
             category = soup.find("h3", {"class": "_feedType_feedTypeLabel__DQpII"})
@@ -301,6 +303,7 @@ async def news_crawling(
             
             # 4. 뉴스 데이터의 본문
             content = soup.find("div", {"class": "article-single__content category_contents_details"})
+            content = content.prettify()
 
             # 8. 비고
             note = '해외 사이트'
@@ -570,7 +573,7 @@ async def bloomingbit(
     # WebDriver 생성 (webdriver-manager 사용)
     service = Service(ChromeDriverManager().install())  # 크롬드라이버 자동 설치 및 경로 설정
     driver = webdriver.Chrome(service=service, options=options)
-    # 모든 driver 작업들에 대해 최대 10초까지 대기
+    # 모든 driver 작업들에 대해 최대 total_wait초까지 대기
     driver.implicitly_wait(total_wait)
 
     # 블루밍비트 웹사이트 열기
