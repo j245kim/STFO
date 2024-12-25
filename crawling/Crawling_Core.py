@@ -18,9 +18,7 @@ from functools import partial
 from concurrent import futures
 
 # 파이썬 서드파티 라이브러리
-import requests
 from bs4 import BeautifulSoup
-from tqdm import tqdm
 
 
 class NewsInfo:
@@ -59,46 +57,8 @@ class Crawling:
         self.max_retry = max_retry # HTML 문서 요청 최대 재시도 횟수
         self.min_delay = min_delay # request 요청 후 잠깐동안 넣을 딜레이 최소 시간
         self.max_delay = max_delay # request 요청 후 잠깐동안 넣을 딜레이 최소 시간
-        self.request_get = partial(requests.get, headers=self.headers, allow_redirects=self.allow_redirects, timeout=self.timeout)
 
         self.__websites = set(('investing',))
         self.crawlings = []
     
-    def request_html(self, url: str) -> str | None:
-        """requests로 HTML 문서 정보를 불러오는 함수
-
-        Args:
-            url: URL
-        
-        Return:
-            텍스트화한 HTML 문서 정보, str
-
-            or 
-        
-            None
-        """
-
-        html = None
-
-        for _ in range(self.max_retry):
-            # requests로 HTML GET
-            response = self.request_get(url)
-            # HTML 문서 정보를 불러오는 것에 성공하면 for문 중단
-            if response.ok and response.status_code == requests.codes.ok:
-                html = response.text
-                break
-
-            time.sleep(random.uniform(self.min_delay, self.max_delay))
-        
-        # 응답 요청이 실패했으면 메세지 출력
-        if html is None:
-            print()
-            print(response.reason)
-            print(f'HTML 문서 정보 가져오기를 실패한 URL : {url}')
-        
-        return html
-
-
-
-
 

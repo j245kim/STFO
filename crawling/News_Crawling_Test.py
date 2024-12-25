@@ -21,6 +21,45 @@ import httpx
 from bs4 import BeautifulSoup
 
 
+def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M') -> str:
+    """웹사이트에 따른 업로드 시각, 수정 시각들을 같은 포맷으로 바꾸는 함수
+
+    Args:
+        website: 웹사이트 이름
+        date_time: 바꿀 시각
+        format: 바꾸는 포맷
+    
+    Return:
+        2000-01-01 23:59 형태의 str 포맷
+    """
+        
+    match website:
+        case 'investing':
+            date_time_list = date_time.split()
+            y_m_d = '-'.join(times[:-1] for times in date_time_list[:3])
+            if date_time_list[3] == '오전':
+                ap = 'AM'
+            else:
+                ap = 'PM'
+
+            news_datetime = y_m_d + ' ' + ap + ' ' + date_time_list[4]
+            news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %p %I:%M')
+            news_datetime = datetime.strftime(news_datetime, format)
+        case 'hankyung':
+            news_datetime = datetime.strptime(date_time, '%Y.%m.%d %H:%M')
+            news_datetime = datetime.strftime(news_datetime, format)
+        case 'bloomingbit':
+            pass
+        case 'coinreaders':
+            pass
+        case 'dealsite':
+            pass
+        case 'blockstreet':
+            pass
+
+    return news_datetime
+
+
 def sync_request(
                 url: str, client: httpx.Client, max_retry: int = 10,
                 min_delay: int | float = 0.55, max_delay: int | float = 1.55
@@ -153,16 +192,8 @@ async def news_crawling(
             span = div[1].find('span')
             span = span.text.strip(' \t\n\r\f\v')
 
-            first_upload_time_list = re.split(pattern=r'\s+\r\n\s+', string=span)[1].split()
-            y_m_d = '-'.join(times[:-1] for times in first_upload_time_list[:3])
-            if first_upload_time_list[3] == '오전':
-                ap = 'AM'
-            else:
-                ap = 'PM'
-
-            first_upload_time = y_m_d + ' ' + ap + ' ' + first_upload_time_list[4]
-            first_upload_time = datetime.strptime(first_upload_time, '%Y-%m-%d %p %I:%M')
-            first_upload_time = datetime.strftime(first_upload_time, '%Y-%m-%d %H:%M')
+            first_upload_time = re.split(pattern=r'\s+\r\n\s+', string=span)[1]
+            first_upload_time = datetime_trans(website='investing', date_time=first_upload_time)
             last_upload_time = None
             
             # 3. 뉴스 데이터의 기사 작성자
@@ -182,11 +213,10 @@ async def news_crawling(
             upload_times = soup.find_all('span', {"class": "txt-date"})
 
             first_upload_time = upload_times[0].text
-            first_upload_time = datetime.strptime(first_upload_time, '%Y.%m.%d %H:%M')
-            first_upload_time = datetime.strftime(first_upload_time, '%Y-%m-%d %H:%M')
+            first_upload_time = datetime_trans(website='hankyung', date_time=upload_times[0].text)
             last_upload_time = upload_times[1].text
-            last_upload_time = datetime.strptime(last_upload_time, '%Y.%m.%d %H:%M')
-            last_upload_time = datetime.strftime(last_upload_time, '%Y-%m-%d %H:%M')
+            last_upload_time = datetime_trans(website='hankyung', date_time=upload_times[1].text)
+
 
             # 3. 뉴스 데이터의 기사 작성자
             author_list = soup.find_all('div', {"class": "author link subs_author_list"})
@@ -421,5 +451,5 @@ if __name__ == '__main__':
     min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
     
-    # investing_result = asyncio.run(investing(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
-    # hankyung_result = asyncio.run(hankyung(end_datetime='2024-11-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
+    # investing_result = asyncio.run(investing(end_datetime='2024-12-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
+    # hankyung_result = asyncio.run(hankyung(end_datetime='2024-12-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
