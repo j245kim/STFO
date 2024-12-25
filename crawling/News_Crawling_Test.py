@@ -48,13 +48,11 @@ def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M')
                 ap = 'AM'
             else:
                 ap = 'PM'
-
             news_datetime = y_m_d + ' ' + ap + ' ' + date_time_list[4]
             news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %p %I:%M')
             news_datetime = datetime.strftime(news_datetime, format)
         case 'hankyung':
-            news_datetime = datetime.strptime(date_time, '%Y.%m.%d %H:%M')
-            news_datetime = datetime.strftime(news_datetime, format)
+            news_datetime = date_time.replace('.', '-')
         case 'bloomingbit':
             date_time = date_time.replace('.', '')
             date_time_list = date_time.split()[1:]
@@ -65,6 +63,10 @@ def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M')
             news_datetime = '-'.join(date_time_list[:3]) + ' ' + date_time_list[3] + ' ' + date_time_list[4]
             news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %p %I:%M')
             news_datetime = datetime.strftime(news_datetime, format)
+        case 'cryptonews':
+            date_time = re.sub(pattern=r'[월,]', repl='', string=date_time)
+            date_time_list = date_time.split()[:-1]
+            news_datetime = f'{date_time_list[2]}-{date_time_list[0]}-{date_time_list[1]} {date_time_list[3]}'
         case 'coinreaders':
             pass
         case 'dealsite':
@@ -228,9 +230,9 @@ async def news_crawling(
             upload_times = soup.find_all('span', {"class": "txt-date"})
 
             first_upload_time = upload_times[0].text
-            first_upload_time = datetime_trans(website=website, date_time=upload_times[0].text)
+            first_upload_time = datetime_trans(website=website, date_time=first_upload_time)
             last_upload_time = upload_times[1].text
-            last_upload_time = datetime_trans(website=website, date_time=upload_times[1].text)
+            last_upload_time = datetime_trans(website=website, date_time=last_upload_time)
 
 
             # 3. 뉴스 데이터의 기사 작성자
@@ -274,7 +276,6 @@ async def news_crawling(
 
             # 7. 뉴스 category
             category = soup.find("h3", {"class": "_feedType_feedTypeLabel__DQpII"})
-
             if category is None:
                 category = '전체 뉴스'
             else:
@@ -282,6 +283,31 @@ async def news_crawling(
 
             # 8. 비고
             note = '국내 사이트'
+        case 'cryptonews':
+            # 1. 뉴스 데이터의 제목
+            title = soup.find("h1", {"class": "mb-10"})
+            title = title.text.strip(' \t\n\r\f\v')
+
+            # 2. 뉴스 데이터의 최초 업로드 시각과 최종 수정 시각
+            first_upload_time = None
+            last_upload_time = soup.find("div", {"class": "single-post-new__author-top"})
+            last_upload_time = last_upload_time.find("time")
+            last_upload_time = last_upload_time.text
+            last_upload_time = datetime_trans(website=website, date_time=last_upload_time)
+
+            # 3. 뉴스 데이터의 기사 작성자
+            author_list = soup.find_all("div", {"class": "author-mini__link"})
+            if author_list:
+                author_list = map(lambda x: x.text, author_list)
+                author = ', '.join(author_list)
+            else:
+                author = None
+            
+            # 4. 뉴스 데이터의 본문
+            content = soup.find("div", {"class": "article-single__content category_contents_details"})
+
+            # 8. 비고
+            note = '해외 사이트'
         case 'coinreaders':
             pass
         case 'dealsite':
@@ -569,6 +595,7 @@ async def bloomingbit(
         last_url_number = max(2, last_number - get_cnt)
 
         last_number -= (get_cnt + 1)
+        # 가장 마지막 페이지인 1페이지는 삭제된 기사이므로 그 아래 포함 종료
         if last_number <= 1:
             nonstop = False
         
