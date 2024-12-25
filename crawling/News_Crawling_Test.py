@@ -42,31 +42,29 @@ def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M')
         
     match website:
         case 'investing':
-            date_time_list = date_time.split()
-            y_m_d = '-'.join(times[:-1] for times in date_time_list[:3])
-            if date_time_list[3] == '오전':
+            y, m, d, ap, hm = re.split(pattern=r'-?\s+', string=date_time)
+            if ap == '오전':
                 ap = 'AM'
             else:
                 ap = 'PM'
-            news_datetime = y_m_d + ' ' + ap + ' ' + date_time_list[4]
+            news_datetime = f'{y}-{m}-{d} {ap} {hm}'
             news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %p %I:%M')
             news_datetime = datetime.strftime(news_datetime, format)
         case 'hankyung':
             news_datetime = date_time.replace('.', '-')
         case 'bloomingbit':
-            date_time = date_time.replace('.', '')
-            date_time_list = date_time.split()[1:]
-            if date_time_list[3] == '오전':
-                date_time_list[3] = 'AM'
+            y, m, d, ap, hm = re.split(pattern=r'\.?\s+', string=date_time)[1:]
+            if ap == '오전':
+                ap = 'AM'
             else:
-                date_time_list[3] = 'PM'
-            news_datetime = '-'.join(date_time_list[:3]) + ' ' + date_time_list[3] + ' ' + date_time_list[4]
+                ap = 'PM'
+            news_datetime = f'{y}-{m}-{d} {ap} {hm}'
             news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %p %I:%M')
             news_datetime = datetime.strftime(news_datetime, format)
         case 'cryptonews':
             date_time = re.sub(pattern=r'[월,]', repl='', string=date_time)
-            date_time_list = date_time.split()[:-1]
-            news_datetime = f'{date_time_list[2]}-{date_time_list[0]}-{date_time_list[1]} {date_time_list[3]}'
+            m, d, y, hm = date_time.split()[:-1]
+            news_datetime = f'{y}-{m}-{d} {hm}'
         case 'coinreaders':
             pass
         case 'dealsite':
@@ -638,6 +636,6 @@ if __name__ == '__main__':
     min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
     
-    # investing_result = asyncio.run(investing(end_datetime='2024-12-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
-    # hankyung_result = asyncio.run(hankyung(end_datetime='2024-12-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
-    # bloomingbit_result = asyncio.run(bloomingbit(end_datetime='2024-12-01 00:00', format='%Y-%m-%d %H:%M', headers=headers))
+    # investing_result = asyncio.run(investing(end_datetime='2024-12-20 00:00', format='%Y-%m-%d %H:%M', headers=headers))
+    # hankyung_result = asyncio.run(hankyung(end_datetime='2024-12-20 00:00', format='%Y-%m-%d %H:%M', headers=headers))
+    # bloomingbit_result = asyncio.run(bloomingbit(end_datetime='2024-12-20 00:00', format='%Y-%m-%d %H:%M', headers=headers))

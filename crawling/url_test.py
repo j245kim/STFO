@@ -18,29 +18,18 @@ max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
 
 clinet = httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding)
 
-url = 'https://cryptonews.com/kr/news/blackrock-endorses-bitcoin-for-balanced-portfolios-amid-record-100k-price/'
+url = 'https://cryptonews.com/kr/news/south-korean-crypto-exchange-upbit-to-delist-bitcoin-gold/'
 response = clinet.get(url)
 
 html = response.text
 
 soup = BeautifulSoup(html, 'html.parser')
 
-title = soup.find("h1", {"class": "mb-10"})
-title = title.text.strip(' \t\n\r\f\v')
-
+# 2. 뉴스 데이터의 최초 업로드 시각과 최종 수정 시각
 last_upload_time = soup.find("div", {"class": "single-post-new__author-top"})
 last_upload_time = last_upload_time.find("time")
 last_upload_time = last_upload_time.text
-last_upload_time = re.sub(pattern=r'[월,]', repl='', string=last_upload_time)
-date_time_list = last_upload_time.split()[:-1]
-last_upload_time = f'{date_time_list[2]}-{date_time_list[0]}-{date_time_list[1]} {date_time_list[3]}'
 
-author = soup.find("div", {"class": "author-mini__link"})
-author = author.text
-
-content = soup.find("div", {"class": "article-single__content category_contents_details"})
-
-print(title)
-print(last_upload_time)
-print(author)
-print(content)
+date_time = re.sub(pattern=r'[월,]', repl='', string=last_upload_time)
+m, d, y, hm = date_time.split()[:-1]
+print(f'{y}-{m}-{d} {hm}')
