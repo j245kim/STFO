@@ -17,7 +17,7 @@ max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
 
 clinet = httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding)
 
-url = 'https://bloomingbit.io/ko/feed/news/1'
+url = 'https://www.hankyung.com/article/20241220912345'
 response = clinet.get(url)
 
 print(f'status_code: {response.status_code}')

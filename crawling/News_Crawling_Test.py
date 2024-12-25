@@ -3,6 +3,8 @@
 # 설치가 필요한 라이브러리
 # pip install httpx
 # pip install beautifulsoup4
+# pip install selenium
+# pip install webdriver-manager
 
 # 파이썬 표준 라이브러리
 import os
@@ -526,7 +528,7 @@ async def bloomingbit(
 
     bloomingbit_website = 'https://bloomingbit.io/ko/feed'
     get_cnt = 20
-    category = ''
+    category = '전체 뉴스'
     website = 'bloomingbit'
     end_date = datetime.strptime(end_datetime, format)
     nonstop = True
