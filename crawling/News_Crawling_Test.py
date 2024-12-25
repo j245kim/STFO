@@ -42,7 +42,7 @@ def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M')
         
     match website:
         case 'investing':
-            y, m, d, ap, hm = re.split(pattern=r'-?\s+', string=date_time)
+            _, y, m, d, ap, hm = re.split(pattern=r'-?\s+', string=date_time)
             if ap == '오전':
                 ap = 'AM'
             else:
@@ -53,7 +53,7 @@ def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M')
         case 'hankyung':
             news_datetime = date_time.replace('.', '-')
         case 'bloomingbit':
-            y, m, d, ap, hm = re.split(pattern=r'\.?\s+', string=date_time)[1:]
+            _, y, m, d, ap, hm = re.split(pattern=r'\.?\s+', string=date_time)
             if ap == '오전':
                 ap = 'AM'
             else:
@@ -205,9 +205,7 @@ async def news_crawling(
             # 2. 뉴스 데이터의 최초 업로드 시각과 최종 수정 시각
             div = soup.find_all('div', {'class': 'flex flex-row items-center'})
             span = div[1].find('span')
-            span = span.text.strip(' \t\n\r\f\v')
-
-            first_upload_time = re.split(pattern=r'\s+\r\n\s+', string=span)[1]
+            first_upload_time = span.text.strip(' \t\n\r\f\v')
             first_upload_time = datetime_trans(website=website, date_time=first_upload_time)
             last_upload_time = None
             
@@ -581,7 +579,7 @@ async def bloomingbit(
     driver.find_element(By.XPATH, '//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button').click()
     # 가장 최신 기사 번호를 추출
     result = driver.find_element(By.XPATH, '//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]')
-    a_tag = result.find_elements(By.TAG_NAME, 'a').pop()
+    a_tag = result.find_elements(By.TAG_NAME, 'a')[-1]
     href = a_tag.get_attribute("href")
     last_number = re.split(pattern=r'/+', string=href)[-1]
     last_number = int(last_number)
