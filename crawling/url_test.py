@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 
 # User-Agent 변경을 위한 옵션 설정
 user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-headers = {'User-Agent': user_agent}
+headers = {'User-Agent': user_agent, "Referer": "https://cryptonews.com/kr/"}
 
 # client 파라미터
 follow_redirects = True # 리다이렉트 허용 여부
@@ -18,14 +18,41 @@ max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
 
 clinet = httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding)
 
-url = 'https://www.hankyung.com/article/2024122577485'
+url = 'https://cryptonews.com/kr/news/top-104-ethereum-whales-now-control-57-of-all-eth-new-high-in-whale-dominance/'
 response = clinet.get(url)
 
-html = response.text
+# html = response.text
 
-soup = BeautifulSoup(html, 'html.parser')
+# soup = BeautifulSoup(html, 'html.parser')
 
-content = soup.find("div", id="articletxt")
-content = content.prettify()
-print(content)
-print(type(content))
+# content = soup.find("div", id="article")
+# content = content.prettify()
+
+print(response.status_code)
+print(response.reason_phrase)
+print(response.history)
+
+
+# ----------------------
+# import os
+# os.environ['PYPPETEER_CHROMIUM_REVISION'] = '1300991'
+
+# from requests_html import HTMLSession
+
+# # 세션 생성
+# session = HTMLSession()
+
+
+# # 대상 URL 요청
+# url = 'https://kr.investing.com/news/cryptocurrency-news/article-1314996'
+# response = session.get(url)
+
+# # 자바스크립트 실행
+# response.html.render()  # 렌더링 시간 조정 가능
+
+# # HTML 파싱
+# soup = BeautifulSoup(response.html.html, 'html.parser')
+
+# # 원하는 태그 가져오기
+# data = soup.find("div", id="article")  # 예: div 태그 가져오기
+# print(data)

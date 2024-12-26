@@ -118,12 +118,13 @@ def sync_request(
     Return:
         {
             "html": HTML 문서 정보, str | None
+            "response_status_code": 응답 코드, int
             "response_reason": 응답 결과 이유, str
             "response_history": 수행된 redirect 응답 목록, list[Response]
         }
     """
 
-    result = {"html": None, "response_reason": None, "response_history": None}
+    result = {"html": None, "response_status_code": None, "response_reason": None, "response_history": None}
 
     for _ in range(max_retry):
         # 동기 client로 HTML GET
@@ -137,6 +138,7 @@ def sync_request(
         time.sleep(random.uniform(min_delay, max_delay))
     
     # 응답 기록 추가
+    result['response_status_code'] = response.status_code
     result['response_reason'] = response.reason_phrase
     result['response_history'] = response.history
     
@@ -159,12 +161,13 @@ async def async_request(
     Return:
         {
             "html": HTML 문서 정보, str | None
+            "response_status_code": 응답 코드, int
             "response_reason": 응답 결과 이유, str
             "response_history": 수행된 redirect 응답 목록, list[Response]
         }
     """
 
-    result = {"html": None, "response_reason": None, "response_history": None}
+    result = {"html": None, "response_status_code": None, "response_reason": None, "response_history": None}
 
     for _ in range(max_retry):
         # 비동기 client로 HTML GET
@@ -178,6 +181,7 @@ async def async_request(
         await asyncio.sleep(random.uniform(min_delay, max_delay))
     
     # 응답 기록 추가
+    result['response_status_code'] = response.status_code
     result['response_reason'] = response.reason_phrase
     result['response_history'] = response.history
     
@@ -394,20 +398,19 @@ async def investing(
         ]
     """
 
-    web_page = 'https://kr.investing.com/news/cryptocurrency-news'
     category = '암호화폐'
     website = 'investing'
-    page = 0
+    page = 1
+    web_page = 'https://kr.investing.com/news/cryptocurrency-news'
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     investing_results = []
 
     while nonstop:
-        page += 1
-
         with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
             sync_result = sync_request(url=web_page, client=sync_client)
-        web_page = f'https://kr.investing.com/news/cryptocurrency-news/{page + 1}'
+        page += 1
+        web_page = f'https://kr.investing.com/news/cryptocurrency-news/{page}'
 
         # redirect를 했으면 최종 페이지까지 갔다는 것이므로 종료
         if sync_result['response_history']:
@@ -487,17 +490,17 @@ async def hankyung(
 
     category = '암호화폐'
     website = 'hankyung'
-    page = 0
+    page = 1
+    web_page = f'https://www.hankyung.com/koreamarket/news/crypto?page={page}'
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     hankyung_results = []
 
     while nonstop:
-        page += 1
-        web_page = f'https://www.hankyung.com/koreamarket/news/crypto?page={page}'
-
         with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
             sync_result = sync_request(url=web_page, client=sync_client)
+        page += 1
+        web_page = f'https://www.hankyung.com/koreamarket/news/crypto?page={page}'
         
         # html 문서 불러오기에 실패했으면 다음 페이지로 넘기기
         if sync_result['html'] is None or sync_result['response_reason'] != 'OK':
@@ -655,6 +658,98 @@ async def bloomingbit(
     return bloomingbit_results
 
 
+async def cryptonews_category(
+                            category: str, category_page: str, end_datetime: str, date_format: str,
+                            headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
+                            encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                            ) -> list[dict[str, str, None]]:
+    """cryptonews 사이트의 부분 카테고리를 크롤링 하는 함수
+
+    Args:
+        category: 카테고리
+        category_page: 카테고리 페이지
+        end_datetime: 크롤링할 마지막 시각
+        date_format: 시각 포맷
+        headers: 식별 정보
+        follow_redirects: 리다이렉트 허용 여부
+        timeout: 응답 대기 허용 시간
+        encoding: 인코딩 방법
+        min_delay: 재시도 할 때 딜레이의 최소 시간
+        max_delay: 재시도 할 때 딜레이의 최대 시간
+
+    Returns:
+        [
+            {
+                "news_title": 뉴스 제목, str
+                "news_first_upload_time": 뉴스 최초 업로드 시각, str | None
+                "newsfinal_upload_time": 뉴스 최종 수정 시각, str | None
+                "news_author": 뉴스 작성자, str | None
+                "news_content": 뉴스 본문, str
+                "news_url": 뉴스 URL, str
+                "news_category": 뉴스 카테고리, str
+                "news_website": 뉴스 웹사이트, str
+                "note": 비고, str | None
+            },
+            {
+                                    ...
+            },
+                                    .
+                                    .
+                                    .
+        ]
+    """
+
+    website = 'cryptonews'
+    page = 1
+    end_date = datetime.strptime(end_datetime, date_format)
+    nonstop = True
+    cryptonews_results = []
+
+    while nonstop:
+        with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
+            sync_result = sync_request(url=category_page, client=sync_client)
+
+        page += 1
+        category_page = f'{category_page}/page/{page}/'
+
+        # 마지막 페이지에 도착했으면 종료
+        if 400 <= sync_result['response_status_code'] < 500:
+            nonstop = False
+            break
+
+        # html 문서 불러오기에 실패했으면 다음 페이지로 넘기기
+        if sync_result['html'] is None or sync_result['response_reason'] != 'OK':
+            print()
+            print(f'{page}번 페이지의 HTML 문서 정보를 불러오는데 실패했습니다.')
+            continue
+    
+        soup = BeautifulSoup(sync_result['html'], 'html.parser')
+        url_tag_list = soup.find_all('div', {"class": "archive-template-latest-news__wrap"})
+        url_list = [tag.find('a')["href"] for tag in url_tag_list]
+
+        async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
+            crawl_list = [news_crawling(url=url, category=category, website=website, client=async_client) for url in url_list]
+            async_result = await asyncio.gather(*crawl_list)
+        
+        # 요청이 실패했으면 제외
+        result = []
+        for idx, res in enumerate(async_result):
+            if res is None:
+                print()
+                print(f'요청 실패한 데이터 : URL={url_list[idx]}, category={category}, website={website}')
+            else:
+                result.append(res)
+        
+        # end_date 이후가 아니면은 제거
+        cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
+        result, nonstop = cut_info['result'], cut_info['nonstop']
+
+        cryptonews_results.extend(result)
+        time.sleep(random.uniform(min_delay, max_delay))
+    
+    return cryptonews_results
+
+
 if __name__ == '__main__':
     # User-Agent 변경을 위한 옵션 설정
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
@@ -671,3 +766,6 @@ if __name__ == '__main__':
     # investing_result = asyncio.run(investing(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
     # hankyung_result = asyncio.run(hankyung(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
     # bloomingbit_result = asyncio.run(bloomingbit(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
+    res1 = asyncio.run(cryptonews_category(category='비트코인', category_page='https://cryptonews.com/kr/news/bitcoin-news/', end_datetime='2024-01-01 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
+    print(len(res1))
+    print(res1[-1])
