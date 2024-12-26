@@ -29,13 +29,13 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 
 
-def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M') -> str:
+def datetime_trans(website: str, date_time: str, date_format: str = '%Y-%m-%d %H:%M') -> str:
     """웹사이트에 따른 업로드 시각, 수정 시각들을 같은 포맷으로 바꾸는 함수
 
     Args:
         website: 웹사이트 이름
         date_time: 바꿀 시각
-        format: 바꾸는 포맷
+        date_format: 바꾸는 포맷
     
     Return:
         2000-01-01 23:59 형태의 str 포맷
@@ -50,7 +50,7 @@ def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M')
                 ap = 'PM'
             news_datetime = f'{y}-{m}-{d} {ap} {hm}'
             news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %p %I:%M')
-            news_datetime = datetime.strftime(news_datetime, format)
+            news_datetime = datetime.strftime(news_datetime, date_format)
         case 'hankyung':
             news_datetime = date_time.replace('.', '-')
         case 'bloomingbit':
@@ -61,7 +61,7 @@ def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M')
                 ap = 'PM'
             news_datetime = f'{y}-{m}-{d} {ap} {hm}'
             news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %p %I:%M')
-            news_datetime = datetime.strftime(news_datetime, format)
+            news_datetime = datetime.strftime(news_datetime, date_format)
         case 'cryptonews':
             date_time = re.sub(pattern=r'[월,]', repl='', string=date_time)
             m, d, y, hm = date_time.split()[:-1]
@@ -76,12 +76,17 @@ def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M')
     return news_datetime
 
 
-def datetime_cut(news_list: list[dict[str, str, None]], end_date: datetime) -> dict[str, list[dict[str, str, None]], bool]:
+def datetime_cut(
+                news_list: list[dict[str, str, None]],
+                end_date: datetime,
+                date_format: str = '%Y-%m-%d %H:%M'
+                ) -> dict[str, list[dict[str, str, None]], bool]:
     """end_date보다 빠른 날짜의 데이터들을 제거하는 함수
 
     Args:
         news_list: 크롤링 및 스크래핑한 뉴스 데이터들
         end_date: 기준 시각
+        date_format: 날짜 포맷
     
     Returns
         {
@@ -92,7 +97,7 @@ def datetime_cut(news_list: list[dict[str, str, None]], end_date: datetime) -> d
     
     info = {"result": deepcopy(news_list), 'nonstop': True}
 
-    while info['result'] and (datetime.strptime(info['result'][-1]['news_first_upload_time'], format) < end_date):
+    while info['result'] and (datetime.strptime(info['result'][-1]['news_first_upload_time'], date_format) < end_date):
             info['nonstop'] = False
             del info['result'][-1]
 
@@ -353,7 +358,7 @@ async def news_crawling(
 
 
 async def investing(
-                    end_datetime: str, format: str,
+                    end_datetime: str, date_format: str,
                     headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
                     encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
                     ) -> list[dict[str, str, None]]:
@@ -361,7 +366,7 @@ async def investing(
 
     Args:
         end_datetime: 크롤링할 마지막 시각
-        format: 시각 포맷
+        date_format: 시각 포맷
         headers: 식별 정보
         follow_redirects: 리다이렉트 허용 여부
         timeout: 응답 대기 허용 시간
@@ -395,7 +400,7 @@ async def investing(
     category = '암호화폐'
     website = 'investing'
     page = 0
-    end_date = datetime.strptime(end_datetime, format)
+    end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     investing_results = []
 
@@ -434,7 +439,7 @@ async def investing(
                 result.append(res)
 
         # end_date 이후가 아니면은 제거
-        cut_info = datetime_cut(news_list=result, end_date=end_date)
+        cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
         result, nonstop = cut_info['result'], cut_info['nonstop']
 
         investing_results.extend(result)
@@ -444,7 +449,7 @@ async def investing(
 
 
 async def hankyung(
-                    end_datetime: str, format: str,
+                    end_datetime: str, date_format: str,
                     headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
                     encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
                     ) -> list[dict[str, str, None]]:
@@ -452,7 +457,7 @@ async def hankyung(
 
     Args:
         end_datetime: 크롤링할 마지막 시각
-        format: 시각 포맷
+        date_format: 시각 포맷
         headers: 식별 정보
         follow_redirects: 리다이렉트 허용 여부
         timeout: 응답 대기 허용 시간
@@ -485,7 +490,7 @@ async def hankyung(
     category = '암호화폐'
     website = 'hankyung'
     page = 0
-    end_date = datetime.strptime(end_datetime, format)
+    end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     hankyung_results = []
 
@@ -526,7 +531,7 @@ async def hankyung(
                 result.append(res)
         
         # end_date 이후가 아니면은 제거
-        cut_info = datetime_cut(news_list=result, end_date=end_date)
+        cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
         result, nonstop = cut_info['result'], cut_info['nonstop']
 
         hankyung_results.extend(result)
@@ -536,7 +541,7 @@ async def hankyung(
 
 
 async def bloomingbit(
-                    end_datetime: str, format: str,
+                    end_datetime: str, date_format: str,
                     headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
                     encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
                     ) -> list[dict[str, str, None]]:
@@ -544,7 +549,7 @@ async def bloomingbit(
 
     Args:
         end_datetime: 크롤링할 마지막 시각
-        format: 시각 포맷
+        date_format: 시각 포맷
         headers: 식별 정보
         follow_redirects: 리다이렉트 허용 여부
         timeout: 응답 대기 허용 시간
@@ -578,7 +583,7 @@ async def bloomingbit(
     get_cnt = 20
     category = '전체 뉴스'
     website = 'bloomingbit'
-    end_date = datetime.strptime(end_datetime, format)
+    end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     bloomingbit_results = []
 
@@ -643,7 +648,7 @@ async def bloomingbit(
                 result.append(res)
         
         # end_date 이후가 아니면은 제거
-        cut_info = datetime_cut(news_list=result, end_date=end_date)
+        cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
         result, nonstop = cut_info['result'], cut_info['nonstop']
 
         bloomingbit_results.extend(result)
@@ -665,7 +670,7 @@ if __name__ == '__main__':
     min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
     
-    investing_result = asyncio.run(investing(end_datetime='2024-12-20 00:00', format='%Y-%m-%d %H:%M', headers=headers))
-    print(investing_result[-1])
-    # hankyung_result = asyncio.run(hankyung(end_datetime='2024-12-20 00:00', format='%Y-%m-%d %H:%M', headers=headers))
-    # bloomingbit_result = asyncio.run(bloomingbit(end_datetime='2024-12-20 00:00', format='%Y-%m-%d %H:%M', headers=headers))
+    # investing_result = asyncio.run(investing(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
+    # hankyung_result = asyncio.run(hankyung(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
+    bloomingbit_result = asyncio.run(bloomingbit(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
+    print(bloomingbit_result[-1])
