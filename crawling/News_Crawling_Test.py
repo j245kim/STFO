@@ -77,9 +77,7 @@ def datetime_trans(website: str, date_time: str, date_format: str = '%Y-%m-%d %H
 
 
 def datetime_cut(
-                news_list: list[dict[str, str, None]],
-                end_date: datetime,
-                date_format: str = '%Y-%m-%d %H:%M'
+                news_list: list[dict[str, str, None]], end_date: datetime, date_format: str = '%Y-%m-%d %H:%M'
                 ) -> dict[str, list[dict[str, str, None]], bool]:
     """end_date보다 빠른 날짜의 데이터들을 제거하는 함수
 
@@ -672,5 +670,4 @@ if __name__ == '__main__':
     
     # investing_result = asyncio.run(investing(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
     # hankyung_result = asyncio.run(hankyung(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
-    bloomingbit_result = asyncio.run(bloomingbit(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
-    print(bloomingbit_result[-1])
+    # bloomingbit_result = asyncio.run(bloomingbit(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
