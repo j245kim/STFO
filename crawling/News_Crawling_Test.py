@@ -15,6 +15,7 @@ import time
 import asyncio
 import logging
 import traceback
+from copy import deepcopy
 from datetime import datetime
 from concurrent import futures
 
@@ -73,6 +74,29 @@ def datetime_trans(website: str, date_time: str, format: str = '%Y-%m-%d %H:%M')
             pass
 
     return news_datetime
+
+
+def datetime_cut(news_list: list[dict[str, str, None]], end_date: datetime) -> dict[str, list[dict[str, str, None]], bool]:
+    """end_date보다 빠른 날짜의 데이터들을 제거하는 함수
+
+    Args:
+        news_list: 크롤링 및 스크래핑한 뉴스 데이터들
+        end_date: 기준 시각
+    
+    Returns
+        {
+            "result": 자르기 완료한 크롤링 및 스크래핑한 뉴스 데이터들, list[dict[str, str, None]]
+            "nonstop": 진행 여부 부울 변수, bool
+        }
+    """
+    
+    info = {"result": deepcopy(news_list), 'nonstop': True}
+
+    while info['result'] and (datetime.strptime(info['result'][-1]['news_first_upload_time'], format) < end_date):
+            info['nonstop'] = False
+            del info['result'][-1]
+
+    return info
 
 
 def sync_request(
@@ -213,36 +237,8 @@ async def news_crawling(
             author = None
 
             # 4. 뉴스 데이터의 본문
-            try:
-                total_wait = 90
-                options = Options()
-
-                # 1. 브라우저 창 숨기기 (Headless 모드)
-                options.add_argument("--headless")
-                # 2. 사용자 에이전트 변경 (옵션)
-                user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-                options.add_argument(f'user-agent={user_agent}')
-                # 3. 불필요한 로그 최소화
-                options.add_argument("--log-level=3")
-                # 4. 알림 비활성화
-                options.add_argument('--disable-notifications')
-
-                # WebDriver 생성 (webdriver-manager 사용)
-                service = Service(ChromeDriverManager().install())  # 크롬드라이버 자동 설치 및 경로 설정
-                driver = webdriver.Chrome(service=service, options=options)
-                # 모든 driver 작업들에 대해 최대 total_wait초까지 대기
-                driver.implicitly_wait(total_wait)
-
-                # 본문 가져오기
-                driver.get(url)
-                content = driver.find_element(By.XPATH, '//*[@id="article"]')
-                content = content.get_attribute('outerHTML')
-                # driver 종료
-                driver.quit()
-            except Exception:
-                print()
-                print('selenium 동작 중 실패')
-                content = None
+            content = soup.find('div', id='article')
+            content = content.prettify()
 
             # 8. 비고
             note = '해외 사이트'
@@ -438,9 +434,8 @@ async def investing(
                 result.append(res)
 
         # end_date 이후가 아니면은 제거
-        while result and (datetime.strptime(result[-1]['news_first_upload_time'], format) < end_date):
-            nonstop = False
-            del result[-1]
+        cut_info = datetime_cut(news_list=result, end_date=end_date)
+        result, nonstop = cut_info['result'], cut_info['nonstop']
 
         investing_results.extend(result)
         time.sleep(random.uniform(min_delay, max_delay))
@@ -531,9 +526,8 @@ async def hankyung(
                 result.append(res)
         
         # end_date 이후가 아니면은 제거
-        while result and (datetime.strptime(result[-1]['news_first_upload_time'], format) < end_date):
-            nonstop = False
-            del result[-1]
+        cut_info = datetime_cut(news_list=result, end_date=end_date)
+        result, nonstop = cut_info['result'], cut_info['nonstop']
 
         hankyung_results.extend(result)
         time.sleep(random.uniform(min_delay, max_delay))
@@ -649,9 +643,8 @@ async def bloomingbit(
                 result.append(res)
         
         # end_date 이후가 아니면은 제거
-        while result and (datetime.strptime(result[-1]['news_first_upload_time'], format) < end_date):
-            nonstop = False
-            del result[-1]
+        cut_info = datetime_cut(news_list=result, end_date=end_date)
+        result, nonstop = cut_info['result'], cut_info['nonstop']
 
         bloomingbit_results.extend(result)
         time.sleep(random.uniform(min_delay, max_delay))
