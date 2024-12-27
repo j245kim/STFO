@@ -546,16 +546,16 @@ async def hankyung(
 
 
 async def bloomingbit(
-                    end_datetime: str, date_format: str, news_last_number: int,
+                    news_last_number: int, end_datetime: str, date_format: str,
                     headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
                     encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
                     ) -> list[dict[str, str, None]]:
     """bloomingbit 사이트를 크롤링 하는 함수
 
     Args:
+        news_last_number: 가장 최신 뉴스 URL의 마지막 숫자
         end_datetime: 크롤링할 마지막 시각
         date_format: 시각 포맷
-        news_last_number: 가장 최신 뉴스 URL의 마지막 숫자
         headers: 식별 정보
         follow_redirects: 리다이렉트 허용 여부
         timeout: 응답 대기 허용 시간
@@ -724,7 +724,7 @@ async def cryptonews_category(
     return cryptonews_results
 
 
-def crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %H:%M') -> list[dict[str, str, None]]:
+def web_crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %H:%M') -> list[dict[str, str, None]]:
     """해당 웹사이트를 크롤링 하는 함수
 
     Args:
@@ -807,15 +807,15 @@ def crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %H:%M
                     print(traceback.format_exc())
                     return []
 
-                return asyncio.run(bloomingbit(end_datetime=end_datetime, date_format=date_format, news_last_number=news_last_number, headers=headers))
+                return asyncio.run(bloomingbit(news_last_number=news_last_number, end_datetime=end_datetime, date_format=date_format, headers=headers))
 
 
 
 
 
 if __name__ == '__main__':
-    # investing_result = crawling(website='investing', end_datetime='2024-12-25 00:00')
-    # hankyung_result = crawling(website='hankyung', end_datetime='2024-12-25 00:00')
-    # bloomingbit_result = crawling(website='bloomingbit', end_datetime='2024-12-25 00:00')
+    # investing_result = web_crawling(website='investing', end_datetime='2024-12-25 00:00')
+    # hankyung_result = web_crawling(website='hankyung', end_datetime='2024-12-25 00:00')
+    # bloomingbit_result = web_crawling(website='bloomingbit', end_datetime='2024-12-25 00:00')
 
     pass
