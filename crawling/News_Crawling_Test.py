@@ -3,8 +3,8 @@
 # 설치가 필요한 라이브러리
 # pip install httpx
 # pip install beautifulsoup4
-# pip install selenium
-# pip install webdriver-manager
+# pip install pytest-playwright
+# 반드시 https://playwright.dev/python/docs/intro 에서 Playwright 설치 관련 가이드 참고
 
 # 파이썬 표준 라이브러리
 import os
@@ -22,11 +22,7 @@ from concurrent import futures
 # 파이썬 서드파티 라이브러리
 import httpx
 from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
+from playwright.sync_api import sync_playwright
 
 
 def datetime_trans(website: str, date_time: str, date_format: str = '%Y-%m-%d %H:%M') -> str:
@@ -398,10 +394,10 @@ async def investing(
         ]
     """
 
-    category = '암호화폐'
-    website = 'investing'
     page = 1
     web_page = 'https://kr.investing.com/news/cryptocurrency-news'
+    category = '암호화폐'
+    website = 'investing'
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     investing_results = []
@@ -488,10 +484,10 @@ async def hankyung(
         ]
     """
 
-    category = '암호화폐'
-    website = 'hankyung'
     page = 1
     web_page = f'https://www.hankyung.com/koreamarket/news/crypto?page={page}'
+    category = '암호화폐'
+    website = 'hankyung'
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     hankyung_results = []
@@ -542,7 +538,7 @@ async def hankyung(
 
 
 async def bloomingbit(
-                    end_datetime: str, date_format: str,
+                    end_datetime: str, date_format: str, news_last_number: int,
                     headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
                     encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
                     ) -> list[dict[str, str, None]]:
@@ -551,6 +547,7 @@ async def bloomingbit(
     Args:
         end_datetime: 크롤링할 마지막 시각
         date_format: 시각 포맷
+        news_last_number: 가장 최신 뉴스 URL의 마지막 숫자
         headers: 식별 정보
         follow_redirects: 리다이렉트 허용 여부
         timeout: 응답 대기 허용 시간
@@ -580,7 +577,6 @@ async def bloomingbit(
         ]
     """
 
-    bloomingbit_website = 'https://bloomingbit.io/ko/feed'
     get_cnt = 20
     category = '전체 뉴스'
     website = 'bloomingbit'
@@ -588,49 +584,13 @@ async def bloomingbit(
     nonstop = True
     bloomingbit_results = []
 
-    try:
-        total_wait = 60
-        options = Options()
-        # 1. 브라우저 창 숨기기 (Headless 모드)
-        options.add_argument("--headless")
-        # 2. 사용자 에이전트 변경 (옵션)
-        options.add_argument(f'user-agent={headers["User-Agent"]}')
-        # 3. 불필요한 로그 최소화
-        options.add_argument("--log-level=3")
-        # 4. 알림 비활성화
-        options.add_argument('--disable-notifications')
-
-        # WebDriver 생성 (webdriver-manager 사용)
-        service = Service(ChromeDriverManager().install())  # 크롬드라이버 자동 설치 및 경로 설정
-        driver = webdriver.Chrome(service=service, options=options)
-        # 모든 driver 작업들에 대해 최대 total_wait초까지 대기
-        driver.implicitly_wait(total_wait)
-
-        # 블루밍비트 웹사이트 열기
-        driver.get(bloomingbit_website)
-        # 블루밍비트 실시간 뉴스에서 전체 클릭
-        driver.find_element(By.XPATH, '//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button').click()
-        # 가장 최신 기사 번호를 추출
-        result = driver.find_element(By.XPATH, '//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]')
-        a_tag = result.find_elements(By.TAG_NAME, 'a')[-1]
-        href = a_tag.get_attribute("href")
-        last_number = re.split(pattern=r'/+', string=href)[-1]
-        last_number = int(last_number)
-        # driver 종료
-        driver.quit()
-    except Exception:
-        print()
-        print('selenium 동작 중 실패')
-        print(traceback.format_exc())
-        return bloomingbit_results
-
     while nonstop:
-        first_url_number = last_number
-        last_url_number = max(2, last_number - get_cnt)
+        first_url_number = news_last_number
+        last_url_number = max(2, news_last_number - get_cnt)
 
-        last_number -= (get_cnt + 1)
+        news_last_number -= (get_cnt + 1)
         # 가장 마지막 페이지인 1페이지는 삭제된 기사이므로 그 아래 포함 종료
-        if last_number <= 1:
+        if news_last_number <= 1:
             nonstop = False
         
         url_list = [f'https://bloomingbit.io/ko/feed/news/{url}' for url in range(first_url_number, last_url_number - 1, -1)]
@@ -661,7 +621,7 @@ async def bloomingbit(
 async def cryptonews_category(
                             category: str, category_page: str, end_datetime: str, date_format: str,
                             headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
-                            encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                            encoding: str = 'utf-8', min_delay: int | float = 1.55, max_delay: int | float = 2.55
                             ) -> list[dict[str, str, None]]:
     """cryptonews 사이트의 부분 카테고리를 크롤링 하는 함수
 
@@ -699,15 +659,15 @@ async def cryptonews_category(
         ]
     """
 
-    website = 'cryptonews'
     page = 1
+    website = 'cryptonews'
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     cryptonews_results = []
 
     while nonstop:
         with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
-            sync_result = sync_request(url=category_page, client=sync_client)
+            sync_result = sync_request(url=category_page, client=sync_client, min_delay=min_delay, max_delay=max_delay)
 
         page += 1
         category_page = f'{category_page}/page/{page}/'
@@ -750,7 +710,36 @@ async def cryptonews_category(
     return cryptonews_results
 
 
-if __name__ == '__main__':
+def crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %H:%M') -> list[dict[str, str, None]]:
+    """해당 웹사이트를 크롤링 하는 함수
+
+    Args:
+        website: 웹사이트 이름
+        end_datetime: 크롤링할 마지막 시각
+        date_format: 시각 포맷
+
+    Returns:
+        [
+            {
+                "news_title": 뉴스 제목, str
+                "news_first_upload_time": 뉴스 최초 업로드 시각, str | None
+                "newsfinal_upload_time": 뉴스 최종 수정 시각, str | None
+                "news_author": 뉴스 작성자, str | None
+                "news_content": 뉴스 본문, str
+                "news_url": 뉴스 URL, str
+                "news_category": 뉴스 카테고리, str
+                "news_website": 뉴스 웹사이트, str
+                "note": 비고, str | None
+            },
+            {
+                                    ...
+            },
+                                    .
+                                    .
+                                    .
+        ]
+    """
+
     # User-Agent 변경을 위한 옵션 설정
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     headers = {'User-Agent': user_agent}
@@ -762,10 +751,53 @@ if __name__ == '__main__':
     max_retry = 10 # HTML 문서 요청 최대 재시도 횟수
     min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
-    
-    # investing_result = asyncio.run(investing(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
-    # hankyung_result = asyncio.run(hankyung(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
-    # bloomingbit_result = asyncio.run(bloomingbit(end_datetime='2024-12-20 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
-    res1 = asyncio.run(cryptonews_category(category='비트코인', category_page='https://cryptonews.com/kr/news/bitcoin-news/', end_datetime='2024-01-01 00:00', date_format='%Y-%m-%d %H:%M', headers=headers))
-    print(len(res1))
-    print(res1[-1])
+
+    match website:
+        case 'investing':
+            return asyncio.run(investing(end_datetime=end_datetime, date_format=date_format, headers=headers))
+        case 'hankyung':
+            return asyncio.run(hankyung(end_datetime=end_datetime, date_format=date_format, headers=headers))
+        case 'bloomingbit':
+                bloomingbit_website = 'https://bloomingbit.io/ko/feed'
+                try:
+                    # Playwright 실행
+                    with sync_playwright() as p:
+                        # 브라우저 열기(Chromium, Firefox, WebKit 중 하나 선택 가능)
+                        browser = p.chromium.launch(headless=True)
+                        page = browser.new_page()
+
+                        # 블루밍비트 웹사이트로 이동
+                        page.goto(bloomingbit_website)
+
+                        # 실시간 뉴스의 전체 버튼이 로드될 떄까지 대기하고 클릭
+                        page.wait_for_selector('xpath=//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button')
+                        page.click('xpath=//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button')
+                        # 가장 최신 뉴스를 클릭할 수 있을때까지 대기하고 하이퍼링크 가져오기
+                        page.wait_for_selector('xpath=//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div')
+                        latest_news_html = page.locator('//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div/section')
+                        all_a = latest_news_html.locator("a").all()
+                        href = all_a[-1].get_attribute("href")
+
+                        # 작업 후 브라우저 닫기
+                        browser.close()
+                    
+                    news_last_number = re.split(pattern=r'/+', string=href)[-1]
+                    news_last_number = int(news_last_number)
+                except Exception:
+                    print()
+                    print('Playwright 동작 중 실패')
+                    print(traceback.format_exc())
+                    return []
+
+                return asyncio.run(bloomingbit(end_datetime=end_datetime, date_format=date_format, news_last_number=news_last_number, headers=headers))
+
+
+
+
+
+if __name__ == '__main__':
+    # investing_result = crawling(website='investing', end_datetime='2024-12-25 00:00')
+    # hankyung_result = crawling(website='hankyung', end_datetime='2024-12-25 00:00')
+    # bloomingbit_result = crawling(website='bloomingbit', end_datetime='2024-12-25 00:00')
+
+    pass

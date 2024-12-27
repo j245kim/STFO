@@ -1,58 +1,29 @@
 import re
-from datetime import datetime
 
-import httpx
-from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
 
-# User-Agent 변경을 위한 옵션 설정
-user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-headers = {'User-Agent': user_agent, "Referer": "https://cryptonews.com/kr/"}
+bloomingbit_website = 'https://bloomingbit.io/ko/feed'
 
-# client 파라미터
-follow_redirects = True # 리다이렉트 허용 여부
-timeout = 90 # 응답 대기 허용 시간
-encoding = 'utf-8'
-max_retry = 10 # HTML 문서 요청 최대 재시도 횟수
-min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
-max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
+with sync_playwright() as p:
+    # 브라우저 열기 (Chromium, Firefox, WebKit 중 하나 선택 가능)
+    browser = p.chromium.launch(headless=True)  # headless=True로 설정하면 브라우저가 안열림
+    page = browser.new_page()
 
-clinet = httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding)
+    # 블루밍비트 브라우저 열기
+    page.goto(bloomingbit_website)
 
-url = 'https://cryptonews.com/kr/news/top-104-ethereum-whales-now-control-57-of-all-eth-new-high-in-whale-dominance/'
-response = clinet.get(url)
+    # 실시간 뉴스의 전체 버튼이 로드될 떄까지 대기하고 클릭
+    page.wait_for_selector('xpath=//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button')
+    page.click('xpath=//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button')
+    # 가장 최신 뉴스를 클릭할 수 있을때까지 대기하고 하이퍼링크 가져오기
+    page.wait_for_selector('xpath=//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div')
+    latest_news_html = page.locator('//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div/section')
+    all_a = latest_news_html.locator("a").all()
+    href = all_a[-1].get_attribute("href")
 
-# html = response.text
+    # 작업 후 브라우저 닫기
+    browser.close()
 
-# soup = BeautifulSoup(html, 'html.parser')
-
-# content = soup.find("div", id="article")
-# content = content.prettify()
-
-print(response.status_code)
-print(response.reason_phrase)
-print(response.history)
-
-
-# ----------------------
-# import os
-# os.environ['PYPPETEER_CHROMIUM_REVISION'] = '1300991'
-
-# from requests_html import HTMLSession
-
-# # 세션 생성
-# session = HTMLSession()
-
-
-# # 대상 URL 요청
-# url = 'https://kr.investing.com/news/cryptocurrency-news/article-1314996'
-# response = session.get(url)
-
-# # 자바스크립트 실행
-# response.html.render()  # 렌더링 시간 조정 가능
-
-# # HTML 파싱
-# soup = BeautifulSoup(response.html.html, 'html.parser')
-
-# # 원하는 태그 가져오기
-# data = soup.find("div", id="article")  # 예: div 태그 가져오기
-# print(data)
+last_number = re.split(pattern=r'/+', string=href)[-1]
+last_number = int(last_number)
+print(last_number)
