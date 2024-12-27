@@ -60,7 +60,7 @@ def datetime_trans(website: str, date_time: str, date_format: str = '%Y-%m-%d %H
             news_datetime = datetime.strftime(news_datetime, date_format)
         case 'cryptonews':
             date_time = re.sub(pattern=r'[월,]', repl='', string=date_time)
-            m, d, y, hm = date_time.split()[:-1]
+            m, d, y, hm, _ = date_time.split()
             news_datetime = f'{y}-{m}-{d} {hm}'
         case 'coinreaders':
             pass
