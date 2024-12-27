@@ -401,12 +401,16 @@ async def investing(
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     investing_results = []
+    headers = deepcopy(headers)
+    headers['Referer'] = web_page
+    headers["Host"] = 'https://kr.investing.com'
 
     while nonstop:
         with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
             sync_result = sync_request(url=web_page, client=sync_client)
         page += 1
         web_page = f'https://kr.investing.com/news/cryptocurrency-news/{page}'
+        headers['Referer'] = web_page
 
         # redirect를 했으면 최종 페이지까지 갔다는 것이므로 종료
         if sync_result['response_history']:
@@ -491,12 +495,16 @@ async def hankyung(
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     hankyung_results = []
+    headers = deepcopy(headers)
+    headers['Referer'] = web_page
+    headers["Host"] = 'https://www.hankyung.com'
 
     while nonstop:
         with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
             sync_result = sync_request(url=web_page, client=sync_client)
         page += 1
         web_page = f'https://www.hankyung.com/koreamarket/news/crypto?page={page}'
+        headers['Referer'] = web_page
         
         # html 문서 불러오기에 실패했으면 다음 페이지로 넘기기
         if sync_result['html'] is None or sync_result['response_reason'] != 'OK':
@@ -583,6 +591,9 @@ async def bloomingbit(
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     bloomingbit_results = []
+    headers = deepcopy(headers)
+    headers['Referer'] = 'https://bloomingbit.io/ko/feed'
+    headers["Host"] = 'https://bloomingbit.io'
 
     while nonstop:
         first_url_number = news_last_number
@@ -664,13 +675,16 @@ async def cryptonews_category(
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     cryptonews_results = []
+    headers = deepcopy(headers)
+    headers['Referer'] = category_page
+    headers['Host'] = 'https://cryptonews.com/'
 
     while nonstop:
         with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
             sync_result = sync_request(url=category_page, client=sync_client, min_delay=min_delay, max_delay=max_delay)
-
         page += 1
         category_page = f'{category_page}/page/{page}/'
+        headers['Referer'] = category_page
 
         # 마지막 페이지에 도착했으면 종료
         if 400 <= sync_result['response_status_code'] < 500:
@@ -742,7 +756,11 @@ def crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %H:%M
 
     # User-Agent 변경을 위한 옵션 설정
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-    headers = {'User-Agent': user_agent}
+    headers = {
+                'User-Agent': user_agent,
+                'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+            }
 
     # client 파라미터
     follow_redirects = True # 리다이렉트 허용 여부
