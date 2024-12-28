@@ -781,7 +781,7 @@ def web_crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %
                         latest_news_html = page.locator('//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div/section')
                         all_a = latest_news_html.locator("a").all()
                         href = all_a[-1].get_attribute("href")
-                        
+
                         # 하이퍼링크에서 가장 마지막 숫자 가져오기
                         news_last_number = re.split(pattern=r'/+', string=href)[-1]
                         news_last_number = int(news_last_number)
