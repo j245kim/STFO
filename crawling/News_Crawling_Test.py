@@ -58,10 +58,6 @@ def datetime_trans(website: str, date_time: str, date_format: str = '%Y-%m-%d %H
             news_datetime = f'{y}-{m}-{d} {ap} {hm}'
             news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %p %I:%M')
             news_datetime = datetime.strftime(news_datetime, date_format)
-        case 'cryptonews':
-            date_time = re.sub(pattern=r'[월,]', repl='', string=date_time)
-            m, d, y, hm, _ = date_time.split()
-            news_datetime = f'{y}-{m}-{d} {hm}'
         case 'coinreaders':
             pass
         case 'dealsite':
@@ -309,32 +305,6 @@ async def news_crawling(
 
             # 8. 비고
             note = '국내 사이트'
-        case 'cryptonews':
-            # 1. 뉴스 데이터의 제목
-            title = soup.find("h1", {"class": "mb-10"})
-            title = title.text.strip(' \t\n\r\f\v')
-
-            # 2. 뉴스 데이터의 최초 업로드 시각과 최종 수정 시각
-            first_upload_time = None
-            last_upload_time = soup.find("div", {"class": "single-post-new__author-top"})
-            last_upload_time = last_upload_time.find("time")
-            last_upload_time = last_upload_time.text
-            last_upload_time = datetime_trans(website=website, date_time=last_upload_time)
-
-            # 3. 뉴스 데이터의 기사 작성자
-            author_list = soup.find_all("div", {"class": "author-mini__link"})
-            if author_list:
-                author_list = map(lambda x: x.text, author_list)
-                author = ', '.join(author_list)
-            else:
-                author = None
-            
-            # 4. 뉴스 데이터의 본문
-            content = soup.find("div", {"class": "article-single__content category_contents_details"})
-            content = content.prettify()
-
-            # 8. 비고
-            note = '해외 사이트'
         case 'coinreaders':
             pass
         case 'dealsite':
@@ -616,97 +586,6 @@ async def bloomingbit(
         time.sleep(random.uniform(min_delay, max_delay))
     
     return bloomingbit_results
-
-
-async def cryptonews_category(
-                            category: str, category_page: str, end_datetime: str, date_format: str,
-                            headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
-                            encoding: str = 'utf-8', min_delay: int | float = 1.55, max_delay: int | float = 2.55
-                            ) -> list[dict[str, str, None]]:
-    """cryptonews 사이트의 부분 카테고리를 크롤링 하는 함수
-
-    Args:
-        category: 카테고리
-        category_page: 카테고리 페이지
-        end_datetime: 크롤링할 마지막 시각
-        date_format: 시각 포맷
-        headers: 식별 정보
-        follow_redirects: 리다이렉트 허용 여부
-        timeout: 응답 대기 허용 시간
-        encoding: 인코딩 방법
-        min_delay: 재시도 할 때 딜레이의 최소 시간
-        max_delay: 재시도 할 때 딜레이의 최대 시간
-
-    Returns:
-        [
-            {
-                "news_title": 뉴스 제목, str
-                "news_first_upload_time": 뉴스 최초 업로드 시각, str | None
-                "newsfinal_upload_time": 뉴스 최종 수정 시각, str | None
-                "news_author": 뉴스 작성자, str | None
-                "news_content": 뉴스 본문, str
-                "news_url": 뉴스 URL, str
-                "news_category": 뉴스 카테고리, str
-                "news_website": 뉴스 웹사이트, str
-                "note": 비고, str | None
-            },
-            {
-                                    ...
-            },
-                                    .
-                                    .
-                                    .
-        ]
-    """
-
-    page = 1
-    website = 'cryptonews'
-    end_date = datetime.strptime(end_datetime, date_format)
-    nonstop = True
-    cryptonews_results = []
-
-    while nonstop:
-        with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
-            sync_result = sync_request(url=category_page, client=sync_client, min_delay=min_delay, max_delay=max_delay)
-        page += 1
-        category_page = f'{category_page}/page/{page}/'
-
-        # 마지막 페이지에 도착했으면 종료
-        if 400 <= sync_result['response_status_code'] < 500:
-            nonstop = False
-            break
-
-        # html 문서 불러오기에 실패했으면 다음 페이지로 넘기기
-        if sync_result['html'] is None or sync_result['response_reason'] != 'OK':
-            print()
-            print(f'{page}번 페이지의 HTML 문서 정보를 불러오는데 실패했습니다.')
-            continue
-    
-        soup = BeautifulSoup(sync_result['html'], 'html.parser')
-        url_tag_list = soup.find_all('div', {"class": "archive-template-latest-news__wrap"})
-        url_list = [tag.find('a')["href"] for tag in url_tag_list]
-
-        async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
-            crawl_list = [news_crawling(url=url, category=category, website=website, client=async_client) for url in url_list]
-            async_result = await asyncio.gather(*crawl_list)
-        
-        # 요청이 실패했으면 제외
-        result = []
-        for idx, res in enumerate(async_result):
-            if res is None:
-                print()
-                print(f'요청 실패한 데이터 : URL={url_list[idx]}, category={category}, website={website}')
-            else:
-                result.append(res)
-        
-        # end_date 이후가 아니면은 제거
-        cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
-        result, nonstop = cut_info['result'], cut_info['nonstop']
-
-        cryptonews_results.extend(result)
-        time.sleep(random.uniform(min_delay, max_delay))
-    
-    return cryptonews_results
 
 
 def web_crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %H:%M') -> list[dict[str, str, None]]:
