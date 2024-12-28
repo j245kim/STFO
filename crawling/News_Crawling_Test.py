@@ -401,16 +401,12 @@ async def investing(
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     investing_results = []
-    headers = deepcopy(headers)
-    headers['Referer'] = web_page
-    headers["Host"] = 'https://kr.investing.com'
 
     while nonstop:
         with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
             sync_result = sync_request(url=web_page, client=sync_client)
         page += 1
         web_page = f'https://kr.investing.com/news/cryptocurrency-news/{page}'
-        headers['Referer'] = web_page
 
         # redirect를 했으면 최종 페이지까지 갔다는 것이므로 종료
         if sync_result['response_history']:
@@ -495,16 +491,12 @@ async def hankyung(
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     hankyung_results = []
-    headers = deepcopy(headers)
-    headers['Referer'] = web_page
-    headers["Host"] = 'https://www.hankyung.com'
 
     while nonstop:
         with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
             sync_result = sync_request(url=web_page, client=sync_client)
         page += 1
         web_page = f'https://www.hankyung.com/koreamarket/news/crypto?page={page}'
-        headers['Referer'] = web_page
         
         # html 문서 불러오기에 실패했으면 다음 페이지로 넘기기
         if sync_result['html'] is None or sync_result['response_reason'] != 'OK':
@@ -591,9 +583,6 @@ async def bloomingbit(
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     bloomingbit_results = []
-    headers = deepcopy(headers)
-    headers['Referer'] = 'https://bloomingbit.io/ko/feed'
-    headers["Host"] = 'https://bloomingbit.io'
 
     while nonstop:
         first_url_number = news_last_number
@@ -675,16 +664,12 @@ async def cryptonews_category(
     end_date = datetime.strptime(end_datetime, date_format)
     nonstop = True
     cryptonews_results = []
-    headers = deepcopy(headers)
-    headers['Referer'] = category_page
-    headers['Host'] = 'https://cryptonews.com/'
 
     while nonstop:
         with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
             sync_result = sync_request(url=category_page, client=sync_client, min_delay=min_delay, max_delay=max_delay)
         page += 1
         category_page = f'{category_page}/page/{page}/'
-        headers['Referer'] = category_page
 
         # 마지막 페이지에 도착했으면 종료
         if 400 <= sync_result['response_status_code'] < 500:
@@ -757,9 +742,7 @@ def web_crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %
     # User-Agent 변경을 위한 옵션 설정
     user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     headers = {
-                'User-Agent': user_agent,
-                'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
+                'User-Agent': user_agent
             }
 
     # client 파라미터
@@ -776,14 +759,17 @@ def web_crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %
         case 'hankyung':
             return asyncio.run(hankyung(end_datetime=end_datetime, date_format=date_format, headers=headers))
         case 'bloomingbit':
-                bloomingbit_website = 'https://bloomingbit.io/ko/feed'
-                try:
-                    # Playwright 실행
-                    with sync_playwright() as p:
-                        # 브라우저 열기(Chromium, Firefox, WebKit 중 하나 선택 가능)
-                        browser = p.chromium.launch(headless=True)
-                        page = browser.new_page()
+            bloomingbit_website = 'https://bloomingbit.io/ko/feed'
+            news_last_number = None
 
+            # Playwright 실행
+            with sync_playwright() as p:
+                # 브라우저 열기(Chromium, Firefox, WebKit 중 하나 선택 가능)
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
+
+                for _ in range(max_retry):
+                    try:
                         # 블루밍비트 웹사이트로 이동
                         page.goto(bloomingbit_website)
 
@@ -791,31 +777,43 @@ def web_crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %
                         page.wait_for_selector('xpath=//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button')
                         page.click('xpath=//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button')
                         # 가장 최신 뉴스를 클릭할 수 있을때까지 대기하고 하이퍼링크 가져오기
-                        page.wait_for_selector('xpath=//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div')
+                        page.wait_for_selector('xpath=//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div/section')
                         latest_news_html = page.locator('//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div/section')
                         all_a = latest_news_html.locator("a").all()
                         href = all_a[-1].get_attribute("href")
-
-                        # 작업 후 브라우저 닫기
-                        browser.close()
+                        # 하이퍼링크에서 가장 마지막 숫자 가져오기
+                        news_last_number = re.split(pattern=r'/+', string=href)[-1]
+                        news_last_number = int(news_last_number)
+                    except Exception:
+                        print()
+                        print('Playwright 동작 중 실패')
+                        print(traceback.format_exc())
                     
-                    news_last_number = re.split(pattern=r'/+', string=href)[-1]
-                    news_last_number = int(news_last_number)
-                except Exception:
-                    print()
-                    print('Playwright 동작 중 실패')
-                    print(traceback.format_exc())
-                    return []
+                    # 가장 마지막 숫자를 불러오는 것에 성공하면 for문 중단
+                    if news_last_number is not None:
+                        break
+                    time.sleep(random.uniform(min_delay, max_delay))
+                
+                # 작업 후 브라우저 닫기
+                browser.close()
 
-                return asyncio.run(bloomingbit(news_last_number=news_last_number, end_datetime=end_datetime, date_format=date_format, headers=headers))
+            if news_last_number is None:
+                return []
+            return asyncio.run(bloomingbit(news_last_number=news_last_number, end_datetime=end_datetime, date_format=date_format, headers=headers))
 
 
 
 
 
 if __name__ == '__main__':
-    # investing_result = web_crawling(website='investing', end_datetime='2024-12-25 00:00')
-    # hankyung_result = web_crawling(website='hankyung', end_datetime='2024-12-25 00:00')
-    # bloomingbit_result = web_crawling(website='bloomingbit', end_datetime='2024-12-25 00:00')
+    # investing_result = web_crawling(website='investing', end_datetime='2024-12-26 00:00')
+    # print(investing_result[0])
+    # print(investing_result[-1])
+    # hankyung_result = web_crawling(website='hankyung', end_datetime='2024-12-26 00:00')
+    # print(hankyung_result[0])
+    # print(hankyung_result[-1])
+    bloomingbit_result = web_crawling(website='bloomingbit', end_datetime='2024-12-26 00:00')
+    print(bloomingbit_result[0])
+    print(bloomingbit_result[-1])
 
     pass
