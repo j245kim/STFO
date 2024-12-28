@@ -812,8 +812,8 @@ if __name__ == '__main__':
     # hankyung_result = web_crawling(website='hankyung', end_datetime='2024-12-26 00:00')
     # print(hankyung_result[0])
     # print(hankyung_result[-1])
-    bloomingbit_result = web_crawling(website='bloomingbit', end_datetime='2024-12-26 00:00')
-    print(bloomingbit_result[0])
-    print(bloomingbit_result[-1])
+    # bloomingbit_result = web_crawling(website='bloomingbit', end_datetime='2024-12-26 00:00')
+    # print(bloomingbit_result[0])
+    # print(bloomingbit_result[-1])
 
     pass
