@@ -373,7 +373,37 @@ async def news_crawling(
         case 'dealsite':
             pass
         case 'blockstreet':
-            pass
+            # 1. 뉴스 데이터의 제목
+            title = soup.find('h1', {"class": "headline"})
+            title = title.text.strip(' \t\n\r\f\v')
+
+            # 2. 뉴스 데이터의 최초 업로드 시각과 최종 수정 시각
+            date_time = soup.find("div", {"class": "datetime"})
+            date_time = date_time.find_all("span")
+            first_upload_time = None
+            last_upload_time = None
+            for span in date_time:
+                span = span.text.split()
+                if span[0] == '등록':
+                    first_upload_time = f'{span[1]} {span[2]}'
+                elif span[0] == '수정':
+                    last_upload_time = f'{span[1]} {span[2]}'
+
+            # 3. 뉴스 데이터의 기사 작성자
+            author_list = soup.find("div", {"class": "byline"})
+            author_list = author_list.find_all("span")
+            if author_list:
+                author_list = map(lambda x: x.find('a').text, author_list)
+                author = ', '.join(author_list)
+            else:
+                author = None
+
+            # 4. 뉴스 데이터의 본문
+            content = soup.find("div", {"class": "view-body fs3"})
+            content = content.prettify()
+
+            # 8. 비고
+            note = '국내 사이트'
 
     info['news_title'] = title
     info['news_first_upload_time'] = first_upload_time
