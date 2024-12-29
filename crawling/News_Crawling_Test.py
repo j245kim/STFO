@@ -25,7 +25,10 @@ from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 
 
-def datetime_trans(website: str, date_time: str, date_format: str = '%Y-%m-%d %H:%M') -> str:
+def datetime_trans(
+                    website: str,
+                   date_time: str, date_format: str = '%Y-%m-%d %H:%M'
+                   ) -> str:
     """웹사이트에 따른 업로드 시각, 수정 시각들을 같은 포맷으로 바꾸는 함수
 
     Args:
@@ -74,7 +77,8 @@ def datetime_trans(website: str, date_time: str, date_format: str = '%Y-%m-%d %H
 
 
 def datetime_cut(
-                news_list: list[dict[str, str, None]], end_date: datetime, date_format: str = '%Y-%m-%d %H:%M'
+                news_list: list[dict[str, str, None]],
+                end_date: datetime, date_format: str = '%Y-%m-%d %H:%M'
                 ) -> dict[str, list[dict[str, str, None]], bool]:
     """end_date보다 빠른 날짜의 데이터들을 제거하는 함수
 
@@ -100,14 +104,18 @@ def datetime_cut(
 
 
 def sync_request(
-                url: str, client: httpx.Client, max_retry: int = 10,
+                url: str, headers: dict[str, str], follow_redirects: bool = True,
+                timeout: int | float = 90, encoding: str = 'utf-8', max_retry: int = 10,
                 min_delay: int | float = 0.55, max_delay: int | float = 1.55
-                 ) -> dict[str, str, httpx.Response, None]:
+                 ) -> dict[str, int, str, httpx.Response, None]:
     """동기로 HTML 문서 정보를 불러오는 함수
 
     Args:
         url: URL
-        client: httpx 동기 클라이언트 객체
+        headers: 식별 정보
+        follow_redirects: 리다이렉트 허용 여부
+        timeout: 응답 대기 허용 시간
+        encoding: 인코딩 방법
         max_retry: HTML 문서 정보 불러오기에 실패했을 때 재시도할 최대 횟수
         min_delay: 재시도 할 때 딜레이의 최소 시간
         max_delay: 재시도 할 때 딜레이의 최대 시간
@@ -122,35 +130,48 @@ def sync_request(
     """
 
     result = {"html": None, "response_status_code": None, "response_reason": None, "response_history": None}
+    error_status = False
 
-    for _ in range(max_retry):
-        # 동기 client로 HTML GET
-        response = client.get(url)
-        # HTML 문서 정보를 불러오는 것에 성공하면 for문 중단
-        if response.status_code == httpx.codes.ok:
-            result['html'] = response.text
-            break
+    with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding, limits=httpx.Limits(max_keepalive_connections=150, max_connections=150)) as client:
+        for _ in range(max_retry):
+            try:
+                # 동기 client로 HTML GET
+                response = client.get(url)
+                error_status = False
+                # HTML 문서 정보를 불러오는 것에 성공하면 for문 중단
+                if response.status_code == httpx.codes.ok:
+                    result['html'] = response.text
+                    break
 
-        # 동기 제어 유지(멀티 프로세싱이라는 전제)
-        time.sleep(random.uniform(min_delay, max_delay))
+                # 동기 제어 유지(멀티 프로세싱이라는 전제)
+                time.sleep(random.uniform(min_delay, max_delay))
+            except Exception as e:
+                print()
+                print(f'{url}에서 {type(e).__name__}가 발생했습니다.')
+                error_status = True
     
     # 응답 기록 추가
-    result['response_status_code'] = response.status_code
-    result['response_reason'] = response.reason_phrase
-    result['response_history'] = response.history
+    if not error_status:
+        result['response_status_code'] = response.status_code
+        result['response_reason'] = response.reason_phrase
+        result['response_history'] = response.history
     
     return result
 
 
 async def async_request(
-                        url: str, client: httpx.AsyncClient, max_retry: int = 10,
+                        url: str, headers: dict[str, str], follow_redirects: bool = True,
+                        timeout: int | float = 90, encoding: str = 'utf-8', max_retry: int = 10,
                         min_delay: int | float = 0.55, max_delay: int | float = 1.55
-                        ) -> dict[str, str, httpx.Response, None]:
+                        ) -> dict[str, int, str, httpx.Response, None]:
     """비동기로 HTML 문서 정보를 불러오는 함수
 
     Args:
         url: URL
-        client: httpx 비동기 클라이언트 객체
+        headers: 식별 정보
+        follow_redirects: 리다이렉트 허용 여부
+        timeout: 응답 대기 허용 시간
+        encoding: 인코딩 방법
         max_retry: HTML 문서 정보 불러오기에 실패했을 때 재시도할 최대 횟수
         min_delay: 재시도 할 때 딜레이의 최소 시간
         max_delay: 재시도 할 때 딜레이의 최대 시간
@@ -165,28 +186,38 @@ async def async_request(
     """
 
     result = {"html": None, "response_status_code": None, "response_reason": None, "response_history": None}
+    error_status = False
 
-    for _ in range(max_retry):
-        # 비동기 client로 HTML GET
-        response = await client.get(url)
-        # HTML 문서 정보를 불러오는 것에 성공하면 for문 중단
-        if response.status_code == httpx.codes.ok:
-            result['html'] = response.text
-            break
+    async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding, limits=httpx.Limits(max_keepalive_connections=200, max_connections=200)) as client:
+        for _ in range(max_retry):
+            try:
+                # 비동기 client로 HTML GET
+                response = await client.get(url)
+                error_status = False
+                # HTML 문서 정보를 불러오는 것에 성공하면 for문 중단
+                if response.status_code == httpx.codes.ok:
+                    result['html'] = response.text
+                    break
 
-        # 비동기 코루틴 제어 양도
-        await asyncio.sleep(random.uniform(min_delay, max_delay))
+                # 비동기 코루틴 제어 양도
+                await asyncio.sleep(random.uniform(min_delay, max_delay))
+            except Exception as e:
+                print()
+                print(f'{url}에서 {type(e).__name__}가 발생했습니다.')
+                error_status = True
     
     # 응답 기록 추가
-    result['response_status_code'] = response.status_code
-    result['response_reason'] = response.reason_phrase
-    result['response_history'] = response.history
+    if not error_status:
+        result['response_status_code'] = response.status_code
+        result['response_reason'] = response.reason_phrase
+        result['response_history'] = response.history
     
     return result
 
 
 async def news_crawling(
-                        url:str, category: str, website: str, client: httpx.AsyncClient
+                        url:str, category: str, website: str, headers: dict[str, str],
+                        max_retry: int = 10, min_delay: int | float = 0.55, max_delay: int | float = 1.55
                         ) -> dict[str, str, None] | None:
     """뉴스 URL을 바탕으로 크롤링을 하는 함수
 
@@ -194,7 +225,10 @@ async def news_crawling(
         url: 뉴스 URL
         category: 뉴스 카테고리
         website: 웹사이트 이름
-        client: httpx 비동기 클라이언트 객체
+        headers: 식별 정보
+        max_retry: HTML 문서 정보 불러오기에 실패했을 때 재시도할 최대 횟수
+        min_delay: 재시도 할 때 딜레이의 최소 시간
+        max_delay: 재시도 할 때 딜레이의 최대 시간
 
     Returns:
         {
@@ -217,7 +251,7 @@ async def news_crawling(
     info = {} # 뉴스 데이터 정보 Dictionary
 
     # 비동기로 HTML GET
-    result = await async_request(url=url, client=client)
+    result = await async_request(url=url, headers=headers, max_retry=max_retry, min_delay=min_delay, max_delay=max_delay)
     # HTML 문서 정보를 불러오는 것에 실패하면 None 반환
     if result['html'] is None:
         return None
@@ -355,9 +389,8 @@ async def news_crawling(
 
 
 async def investing(
-                    end_datetime: str, date_format: str,
-                    headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
-                    encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                    end_datetime: str, date_format: str, headers: dict[str, str],
+                    min_delay: int | float = 0.55, max_delay: int | float = 1.55
                     ) -> list[dict[str, str, None]]:
     """investing 사이트를 크롤링 하는 함수
 
@@ -365,9 +398,6 @@ async def investing(
         end_datetime: 크롤링할 마지막 시각
         date_format: 시각 포맷
         headers: 식별 정보
-        follow_redirects: 리다이렉트 허용 여부
-        timeout: 응답 대기 허용 시간
-        encoding: 인코딩 방법
         min_delay: 재시도 할 때 딜레이의 최소 시간
         max_delay: 재시도 할 때 딜레이의 최대 시간
 
@@ -402,8 +432,7 @@ async def investing(
     investing_results = []
 
     while nonstop:
-        with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
-            sync_result = sync_request(url=web_page, client=sync_client)
+        sync_result = sync_request(url=web_page, headers=headers)
         page += 1
         web_page = f'https://kr.investing.com/news/cryptocurrency-news/{page}'
 
@@ -421,9 +450,8 @@ async def investing(
         url_tag_list = soup.find_all('article', {"data-test": "article-item"})
         url_list = [url_tag.find('a')["href"] for url_tag in url_tag_list]
 
-        async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
-            crawl_list = [news_crawling(url=url, category=category, website=website, client=async_client) for url in url_list]
-            async_result = await asyncio.gather(*crawl_list)
+        crawl_list = [news_crawling(url=url, category=category, website=website, headers=headers) for url in url_list]
+        async_result = await asyncio.gather(*crawl_list)
         
         # 요청이 실패했으면 제외
         result = []
@@ -445,9 +473,8 @@ async def investing(
 
 
 async def hankyung(
-                    end_datetime: str, date_format: str,
-                    headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
-                    encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                    end_datetime: str, date_format: str, headers: dict[str, str],
+                    min_delay: int | float = 0.55, max_delay: int | float = 1.55
                     ) -> list[dict[str, str, None]]:
     """hankyung 사이트를 크롤링 하는 함수
 
@@ -455,9 +482,6 @@ async def hankyung(
         end_datetime: 크롤링할 마지막 시각
         date_format: 시각 포맷
         headers: 식별 정보
-        follow_redirects: 리다이렉트 허용 여부
-        timeout: 응답 대기 허용 시간
-        encoding: 인코딩 방법
         min_delay: 재시도 할 때 딜레이의 최소 시간
         max_delay: 재시도 할 때 딜레이의 최대 시간
 
@@ -492,8 +516,7 @@ async def hankyung(
     hankyung_results = []
 
     while nonstop:
-        with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
-            sync_result = sync_request(url=web_page, client=sync_client)
+        sync_result = sync_request(url=web_page, headers=headers)
         page += 1
         web_page = f'https://www.hankyung.com/koreamarket/news/crypto?page={page}'
         
@@ -513,9 +536,8 @@ async def hankyung(
 
         url_list = [url_tag.find('a')["href"] for url_tag in url_tag_list]
 
-        async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
-            crawl_list = [news_crawling(url=url, category=category, website=website, client=async_client) for url in url_list]
-            async_result = await asyncio.gather(*crawl_list)
+        crawl_list = [news_crawling(url=url, category=category, website=website, headers=headers) for url in url_list]
+        async_result = await asyncio.gather(*crawl_list)
         
         # 요청이 실패했으면 제외
         result = []
@@ -538,8 +560,7 @@ async def hankyung(
 
 async def bloomingbit(
                     news_last_number: int, end_datetime: str, date_format: str,
-                    headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
-                    encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                    headers: dict[str, str], min_delay: int | float = 0.55, max_delay: int | float = 1.55
                     ) -> list[dict[str, str, None]]:
     """bloomingbit 사이트를 크롤링 하는 함수
 
@@ -548,9 +569,6 @@ async def bloomingbit(
         end_datetime: 크롤링할 마지막 시각
         date_format: 시각 포맷
         headers: 식별 정보
-        follow_redirects: 리다이렉트 허용 여부
-        timeout: 응답 대기 허용 시간
-        encoding: 인코딩 방법
         min_delay: 재시도 할 때 딜레이의 최소 시간
         max_delay: 재시도 할 때 딜레이의 최대 시간
 
@@ -594,9 +612,8 @@ async def bloomingbit(
         
         url_list = [f'https://bloomingbit.io/ko/feed/news/{url}' for url in range(first_url_number, last_url_number - 1, -1)]
     
-        async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
-            crawl_list = [news_crawling(url=url, category=category, website=website, client=async_client) for url in url_list]
-            async_result = await asyncio.gather(*crawl_list)
+        crawl_list = [news_crawling(url=url, category=category, website=website, headers=headers) for url in url_list]
+        async_result = await asyncio.gather(*crawl_list)
         
         # 요청이 실패했으면 제외
         result = []
@@ -618,9 +635,8 @@ async def bloomingbit(
 
 
 async def coinreaders_category(
-                                category: str, end_datetime: str, date_format: str,
-                                headers: dict[str, str], follow_redirects: bool = True, timeout: int | float = 90,
-                                encoding: str = 'utf-8', min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                                category: str, end_datetime: str, date_format: str, headers: dict[str, str],
+                                min_delay: int | float = 0.55, max_delay: int | float = 1.55
                                 ) -> list[dict[str, str, None]]:
     """coinreaders 사이트에서 일부 카테고리를 크롤링 하는 함수
 
@@ -629,9 +645,6 @@ async def coinreaders_category(
         end_datetime: 크롤링할 마지막 시각
         date_format: 시각 포맷
         headers: 식별 정보
-        follow_redirects: 리다이렉트 허용 여부
-        timeout: 응답 대기 허용 시간
-        encoding: 인코딩 방법
         min_delay: 재시도 할 때 딜레이의 최소 시간
         max_delay: 재시도 할 때 딜레이의 최대 시간
 
@@ -668,8 +681,7 @@ async def coinreaders_category(
     coinreaders_results = []
 
     while nonstop:
-        with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as sync_client:
-            sync_result = sync_request(url=web_page, client=sync_client)
+        sync_result = sync_request(url=web_page, headers=headers, min_delay=1, max_delay=2)
         page += 1
         if category == 'Breaking_news':
             web_page = f'https://www.coinreaders.com/sub.html?page={page}&section=sc16&section2='
@@ -692,9 +704,8 @@ async def coinreaders_category(
 
         url_list = [f"https://www.coinreaders.com{url_tag.find('a')['href']}" for url_tag in url_tag_list]
 
-        async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding) as async_client:
-            crawl_list = [news_crawling(url=url, category=category, website=website, client=async_client) for url in url_list]
-            async_result = await asyncio.gather(*crawl_list)
+        crawl_list = [news_crawling(url=url, category=category, website=website, headers=headers) for url in url_list]
+        async_result = await asyncio.gather(*crawl_list)
         
         # 요청이 실패했으면 제외
         result = []
@@ -747,17 +758,22 @@ async def coinreaders(
         ]
     """
 
-    async with asyncio.TaskGroup() as tg:
-        task1 = tg.create_task(coinreaders_category(category='Breaking_news', end_datetime=end_datetime, date_format=date_format, headers=headers))
-        task2 = tg.create_task(coinreaders_category(category='Crypto&Blockchain', end_datetime=end_datetime, date_format=date_format, headers=headers))
+    task1 = asyncio.create_task(coinreaders_category(category='Breaking_news', end_datetime=end_datetime, date_format=date_format, headers=headers))
+    task2 = asyncio.create_task(coinreaders_category(category='Crypto&Blockchain', end_datetime=end_datetime, date_format=date_format, headers=headers))
     
+    await task1
+    await task2
+
     breaking_news_list = task1.result()
     crypto_blockchain_news_list = task2.result()
     coinreaders_result = breaking_news_list + crypto_blockchain_news_list
     return coinreaders_result
 
 
-def web_crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %H:%M') -> list[dict[str, str, None]]:
+def web_crawling(
+                website: str,
+                end_datetime: str, date_format: str = '%Y-%m-%d %H:%M'
+                ) -> list[dict[str, str, None]]:
     """해당 웹사이트를 크롤링 하는 함수
 
     Args:
@@ -857,15 +873,14 @@ def web_crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %
 
 
 if __name__ == '__main__':
-    # investing_result = web_crawling(website='investing', end_datetime='2024-12-26 00:00')
+    end_datetime = '2024-12-20 00:00'
+    # investing_result = web_crawling(website='investing', end_datetime=end_datetime)
     # print(investing_result[0])
     # print(investing_result[-1])
-    # hankyung_result = web_crawling(website='hankyung', end_datetime='2024-12-26 00:00')
+    # hankyung_result = web_crawling(website='hankyung', end_datetime=end_datetime)
     # print(hankyung_result[0])
     # print(hankyung_result[-1])
-    # bloomingbit_result = web_crawling(website='bloomingbit', end_datetime='2024-12-26 00:00')
+    # bloomingbit_result = web_crawling(website='bloomingbit', end_datetime=end_datetime)
     # print(bloomingbit_result[0])
     # print(bloomingbit_result[-1])
-    # coinreaders_result = web_crawling(website='coinreaders', end_datetime='2024-12-26 00:00')
-
-    pass
+    coinreaders_result = web_crawling(website='coinreaders', end_datetime=end_datetime)
