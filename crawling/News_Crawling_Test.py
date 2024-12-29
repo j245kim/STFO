@@ -800,6 +800,13 @@ async def coinreaders(
     return coinreaders_result
 
 
+async def blockstreet(
+                        end_datetime: str, date_format: str, headers: dict[str, str],
+                        min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                    ) -> list[dict[str, str, None]]:
+    pass
+
+
 def web_crawling(
                 website: str,
                 end_datetime: str, date_format: str = '%Y-%m-%d %H:%M'
@@ -905,12 +912,6 @@ def web_crawling(
 if __name__ == '__main__':
     end_datetime = '2024-12-26 00:00'
     # investing_result = web_crawling(website='investing', end_datetime=end_datetime)
-    # print(investing_result[0])
-    # print(investing_result[-1])
     # hankyung_result = web_crawling(website='hankyung', end_datetime=end_datetime)
-    # print(hankyung_result[0])
-    # print(hankyung_result[-1])
     # bloomingbit_result = web_crawling(website='bloomingbit', end_datetime=end_datetime)
-    # print(bloomingbit_result[0])
-    # print(bloomingbit_result[-1])
     # coinreaders_result = web_crawling(website='coinreaders', end_datetime=end_datetime)
