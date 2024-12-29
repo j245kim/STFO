@@ -715,6 +715,48 @@ async def coinreaders_category(
     return coinreaders_results
 
 
+async def coinreaders(
+                        end_datetime: str, date_format: str, headers: dict[str, str],
+                    )-> list[dict[str, str, None]]:
+    """coinreaders 사이트를 크롤링 하는 함수
+
+    Args:
+        end_datetime: 크롤링할 마지막 시각
+        date_format: 시각 포맷
+        headers: 식별 정보
+
+    Returns:
+        [
+            {
+                "news_title": 뉴스 제목, str
+                "news_first_upload_time": 뉴스 최초 업로드 시각, str | None
+                "newsfinal_upload_time": 뉴스 최종 수정 시각, str | None
+                "news_author": 뉴스 작성자, str | None
+                "news_content": 뉴스 본문, str
+                "news_url": 뉴스 URL, str
+                "news_category": 뉴스 카테고리, str
+                "news_website": 뉴스 웹사이트, str
+                "note": 비고, str | None
+            },
+            {
+                                    ...
+            },
+                                    .
+                                    .
+                                    .
+        ]
+    """
+
+    async with asyncio.TaskGroup() as tg:
+        task1 = tg.create_task(coinreaders_category(category='Breaking_news', end_datetime=end_datetime, date_format=date_format, headers=headers))
+        task2 = tg.create_task(coinreaders_category(category='Crypto&Blockchain', end_datetime=end_datetime, date_format=date_format, headers=headers))
+    
+    breaking_news_list = task1.result()
+    crypto_blockchain_news_list = task2.result()
+    coinreaders_result = breaking_news_list + crypto_blockchain_news_list
+    return coinreaders_result
+
+
 def web_crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %H:%M') -> list[dict[str, str, None]]:
     """해당 웹사이트를 크롤링 하는 함수
 
@@ -808,8 +850,7 @@ def web_crawling(website: str, end_datetime: str, date_format: str = '%Y-%m-%d %
                 return []
             return asyncio.run(bloomingbit(news_last_number=news_last_number, end_datetime=end_datetime, date_format=date_format, headers=headers))
         case 'coinreaders':
-            return asyncio.run(coinreaders_category(category='Breaking_news', end_datetime=end_datetime, date_format=date_format, headers=headers))
-            return asyncio.run(coinreaders_category(category='Crypto&Blockchain', end_datetime=end_datetime, date_format=date_format, headers=headers))
+            return asyncio.run(coinreaders(end_datetime=end_datetime, date_format=date_format, headers=headers))
 
 
 
@@ -825,8 +866,6 @@ if __name__ == '__main__':
     # bloomingbit_result = web_crawling(website='bloomingbit', end_datetime='2024-12-26 00:00')
     # print(bloomingbit_result[0])
     # print(bloomingbit_result[-1])
-    coinreaders_result = web_crawling(website='coinreaders', end_datetime='2024-12-26 00:00')
-    print(coinreaders_result[0])
-    print(coinreaders_result[-1])
+    # coinreaders_result = web_crawling(website='coinreaders', end_datetime='2024-12-26 00:00')
 
     pass
