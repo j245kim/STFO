@@ -128,7 +128,8 @@ def sync_request(
         }
     """
 
-    result = {"html": None, "response_status_code": None, "response_reason": None, "response_history": None}
+    result = {"html": None, "response_status_code": None, "response_reason": None, "response_history": None,
+              "error_type": None}
 
     with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding, limits=httpx.Limits(max_keepalive_connections=150, max_connections=150)) as client:
         for _ in range(max_retry):
@@ -153,6 +154,7 @@ def sync_request(
                 result['response_status_code'] = None
                 result['response_reason'] = None
                 result['response_history'] = None
+                result['error_type'] = type(e).__name__
     
     return result
 
@@ -183,7 +185,8 @@ async def async_request(
         }
     """
 
-    result = {"html": None, "response_status_code": None, "response_reason": None, "response_history": None}
+    result = {"html": None, "response_status_code": None, "response_reason": None, "response_history": None,
+              'error_type': None}
 
     async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding, limits=httpx.Limits(max_keepalive_connections=200, max_connections=200)) as client:
         for _ in range(max_retry):
@@ -208,6 +211,7 @@ async def async_request(
                 result['response_status_code'] = None
                 result['response_reason'] = None
                 result['response_history'] = None
+                result['error_type'] = type(e).__name__
     
     return result
 
@@ -415,6 +419,49 @@ async def news_crawling(
     return info
 
 
+async def async_crawling(
+                        url_list: list[str], category: str, website: str, headers: dict[str, str],
+                        min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                        ) -> list[dict[str, str, None] | None]:
+    """비동기로 뉴스 URL들을 크롤링하는 함수
+
+    Args:
+        url_list: 뉴스 URL list
+        category: 뉴스 카테고리
+        website: 웹사이트 이름
+        headers: 식별 정보
+        min_delay: 재시도 할 때 딜레이의 최소 시간
+        max_delay: 재시도 할 때 딜레이의 최대 시간
+
+    Returns:
+        [
+            {
+                "news_title": 뉴스 제목, str
+                "news_first_upload_time": 뉴스 최초 업로드 시각, str | None
+                "newsfinal_upload_time": 뉴스 최종 수정 시각, str | None
+                "news_author": 뉴스 작성자, str | None
+                "news_content": 뉴스 본문, str
+                "news_url": 뉴스 URL, str
+                "news_category": 뉴스 카테고리, str
+                "news_website": 뉴스 웹사이트, str
+                "note": 비고, str | None
+            },
+            {
+                                    ...
+            },
+                                    .
+                                    .
+                                    .
+        ]
+    """
+
+    if url_list:
+        crawl_list = [news_crawling(url=url, category=category, website=website, headers=headers, min_delay=min_delay, max_delay=max_delay) for url in url_list]
+        async_result = await asyncio.gather(*crawl_list)
+        return async_result
+    return []
+
+
 async def investing(
                     end_datetime: str, date_format: str, headers: dict[str, str],
                     min_delay: int | float = 0.55, max_delay: int | float = 1.55
@@ -477,8 +524,7 @@ async def investing(
         url_tag_list = soup.find_all('article', {"data-test": "article-item"})
         url_list = [url_tag.find('a')["href"] for url_tag in url_tag_list]
 
-        crawl_list = [news_crawling(url=url, category=category, website=website, headers=headers) for url in url_list]
-        async_result = await asyncio.gather(*crawl_list)
+        async_result = await async_crawling(url_list=url_list, category=category, website=website, headers=headers)
         
         # 요청이 실패했으면 제외
         result = []
@@ -563,8 +609,7 @@ async def hankyung(
 
         url_list = [url_tag.find('a')["href"] for url_tag in url_tag_list]
 
-        crawl_list = [news_crawling(url=url, category=category, website=website, headers=headers) for url in url_list]
-        async_result = await asyncio.gather(*crawl_list)
+        async_result = await async_crawling(url_list=url_list, category=category, website=website, headers=headers)
         
         # 요청이 실패했으면 제외
         result = []
@@ -639,8 +684,7 @@ async def bloomingbit(
         
         url_list = [f'https://bloomingbit.io/ko/feed/news/{url}' for url in range(first_url_number, last_url_number - 1, -1)]
     
-        crawl_list = [news_crawling(url=url, category=category, website=website, headers=headers) for url in url_list]
-        async_result = await asyncio.gather(*crawl_list)
+        async_result = await async_crawling(url_list=url_list, category=category, website=website, headers=headers)
         
         # 요청이 실패했으면 제외
         result = []
@@ -731,8 +775,7 @@ async def coinreaders_category(
 
         url_list = [f"https://www.coinreaders.com{url_tag.find('a')['href']}" for url_tag in url_tag_list]
 
-        crawl_list = [news_crawling(url=url, category=category, website=website, headers=headers) for url in url_list]
-        async_result = await asyncio.gather(*crawl_list)
+        async_result = await async_crawling(url_list=url_list, category=category, website=website, headers=headers)
         
         # 요청이 실패했으면 제외
         result = []
@@ -860,7 +903,8 @@ async def blockstreet(
                 section_n = page.locator(f'//*[@id="newsList"]/section[{i}]')
 
                 # 만약 section_n을 찾는 것에 실패하면 종료
-                if section_n.count() == 0:
+                cnt = await section_n.count()
+                if cnt == 0:
                     nonstop = False
                     break
                 
@@ -870,8 +914,7 @@ async def blockstreet(
 
                 section_cnt += 1
 
-            crawl_list = [news_crawling(url=url, category=category, website=website, headers=headers) for url in url_list]
-            async_result = await asyncio.gather(*crawl_list)
+            async_result = await async_crawling(url_list=url_list, category=category, website=website, headers=headers)
             
             # 요청이 실패했으면 제외
             result = []
