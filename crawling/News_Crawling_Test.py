@@ -66,10 +66,8 @@ def datetime_trans(
             _time = re.sub(pattern=r'\[|\]', repl='', string=_time)
             news_datetime = f'{_date} {_time}'
             news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %H:%M')
-        case 'dealsite':
-            pass
         case 'blockstreet':
-            pass
+            news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %H:%M')
 
     news_datetime = datetime.strftime(news_datetime, date_format)
 
@@ -370,8 +368,6 @@ async def news_crawling(
 
             # 8. 비고
             note = '국내 사이트'
-        case 'dealsite':
-            pass
         case 'blockstreet':
             # 1. 뉴스 데이터의 제목
             title = soup.find('h1', {"class": "headline"})
@@ -386,8 +382,10 @@ async def news_crawling(
                 span = span.text.split()
                 if span[0] == '등록':
                     first_upload_time = f'{span[1]} {span[2]}'
+                    first_upload_time = datetime_trans(website=website, date_time=first_upload_time)
                 elif span[0] == '수정':
                     last_upload_time = f'{span[1]} {span[2]}'
+                    last_upload_time = datetime_trans(website=website, date_time=last_upload_time)
 
             # 3. 뉴스 데이터의 기사 작성자
             author_list = soup.find("div", {"class": "byline"})
