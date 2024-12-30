@@ -1,3 +1,4 @@
+import time
 import re
 from datetime import datetime
 
@@ -16,21 +17,21 @@ max_retry = 10 # HTML 문서 요청 최대 재시도 횟수
 min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
 max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
 
-clinet = httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding)
+# clinet = httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding)
 
-url = 'https://cryptonews.com/kr/news/top-104-ethereum-whales-now-control-57-of-all-eth-new-high-in-whale-dominance/'
-response = clinet.get(url)
+# url = 'https://cryptonews.com/kr/'
+# response = clinet.get(url)
 
-# html = response.text
+# # html = response.text
 
-# soup = BeautifulSoup(html, 'html.parser')
+# # soup = BeautifulSoup(html, 'html.parser')
 
-# content = soup.find("div", id="article")
-# content = content.prettify()
+# # content = soup.find("div", id="article")
+# # content = content.prettify()
 
-print(response.status_code)
-print(response.reason_phrase)
-print(response.history)
+# print(response.status_code)
+# print(response.reason_phrase)
+# print(response.history)
 
 
 # ----------------------
@@ -56,3 +57,19 @@ print(response.history)
 # # 원하는 태그 가져오기
 # data = soup.find("div", id="article")  # 예: div 태그 가져오기
 # print(data)
+
+# -----------------------
+from playwright.sync_api import sync_playwright
+
+url = "https://bloomingbit.io/ko/feed"
+
+with sync_playwright() as p:
+    browser = p.chromium.launch()
+    page = browser.new_page()
+    page.goto(url)
+    page.get_by_role("button", name="PiCK").click()
+    html_content = page.content()
+    time.sleep(5)
+    browser.close()
+
+print(html_content)
