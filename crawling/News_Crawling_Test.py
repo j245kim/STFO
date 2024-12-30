@@ -22,7 +22,6 @@ from concurrent import futures
 # 파이썬 서드파티 라이브러리
 import httpx
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright
 from playwright.async_api import async_playwright
 
 
@@ -631,13 +630,12 @@ async def hankyung(
 
 
 async def bloomingbit(
-                    news_last_number: int, end_datetime: str, date_format: str,
-                    headers: dict[str, str], min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                    end_datetime: str, date_format: str, headers: dict[str, str],
+                    min_delay: int | float = 0.55, max_delay: int | float = 1.55
                     ) -> list[dict[str, str, None]]:
     """bloomingbit 사이트를 크롤링 하는 함수
 
     Args:
-        news_last_number: 가장 최신 뉴스 URL의 마지막 숫자
         end_datetime: 크롤링할 마지막 시각
         date_format: 시각 포맷
         headers: 식별 정보
@@ -665,6 +663,48 @@ async def bloomingbit(
                                     .
         ]
     """
+    bloomingbit_website = 'https://bloomingbit.io/ko/feed'
+    max_retry = 10
+    news_last_number = None
+
+    # Playwright 실행
+    async with async_playwright() as p:
+        # 브라우저 열기(Chromium, Firefox, WebKit 중 하나 선택 가능)
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+
+        for _ in range(max_retry):
+            try:
+                # 블루밍비트 웹사이트로 이동
+                await page.goto(bloomingbit_website)
+
+                # 실시간 뉴스의 전체 버튼이 로드될 떄까지 대기하고 클릭
+                await page.wait_for_selector('xpath=//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button')
+                await page.click('xpath=//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button')
+                # 가장 최신 뉴스를 클릭할 수 있을때까지 대기하고 하이퍼링크 가져오기
+                await page.wait_for_selector('xpath=//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div/section')
+                latest_news_html = page.locator('//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div/section')
+                all_a = await latest_news_html.locator("a").all()
+                href = await all_a[-1].get_attribute("href")
+
+                # 하이퍼링크에서 가장 마지막 숫자 가져오기
+                news_last_number = re.split(pattern=r'/+', string=href)[-1]
+                news_last_number = int(news_last_number)
+            except Exception as e:
+                print()
+                print(f'Playwright 동작 중 {type(e).__name__}가 발생했습니다.')
+                print(traceback.format_exc())
+            
+            # 가장 마지막 숫자를 불러오는 것에 성공하면 for문 중단
+            if news_last_number is not None:
+                break
+            time.sleep(random.uniform(min_delay, max_delay))
+        
+        # 작업 후 브라우저 닫기
+        await browser.close()
+
+    if news_last_number is None:
+        return []
 
     get_cnt = 20
     category = '전체 뉴스'
@@ -889,51 +929,56 @@ async def blockstreet(
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
 
-        # 블록스트리트 웹사이트로 이동
-        await page.goto(blockstreet_website)
+        try:
+            # 블록스트리트 웹사이트로 이동
+            await page.goto(blockstreet_website)
 
-        await page.wait_for_selector('xpath=//*[@id="container"]/div[2]/div/button')
-        section_list = await page.locator('//*[@id="newsList"]').locator('section').all()
-        list_unit = len(section_list)
-
-        while nonstop:
-            url_list = []
-
-            for i in range(section_cnt, section_cnt + list_unit):
-                section_n = page.locator(f'//*[@id="newsList"]/section[{i}]')
-
-                # 만약 section_n을 찾는 것에 실패하면 종료
-                cnt = await section_n.count()
-                if cnt == 0:
-                    nonstop = False
-                    break
-                
-                href = await section_n.locator("a").get_attribute("href")
-                url = f'https://www.blockstreet.co.kr{href}'
-                url_list.append(url)
-
-                section_cnt += 1
-
-            async_result = await async_crawling(url_list=url_list, category=category, website=website, headers=headers)
-            
-            # 요청이 실패했으면 제외
-            result = []
-            for idx, res in enumerate(async_result):
-                if res is None:
-                    print()
-                    print(f'요청 실패한 데이터 : URL={url_list[idx]}, category={category}, website={website}')
-                else:
-                    result.append(res)
-            
-            # end_date 이후가 아니면은 제거
-            cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
-            result, nonstop = cut_info['result'], cut_info['nonstop']
-
-            blockstreet_results.extend(result)
-            time.sleep(random.uniform(min_delay, max_delay))
-
-            await page.click('xpath=//*[@id="container"]/div[2]/div/button')
             await page.wait_for_selector('xpath=//*[@id="container"]/div[2]/div/button')
+            section_list = await page.locator('//*[@id="newsList"]').locator('section').all()
+            list_unit = len(section_list)
+
+            while nonstop:
+                url_list = []
+
+                for i in range(section_cnt, section_cnt + list_unit):
+                    section_n = page.locator(f'//*[@id="newsList"]/section[{i}]')
+
+                    # 만약 section_n을 찾는 것에 실패하면 종료
+                    cnt = await section_n.count()
+                    if cnt == 0:
+                        nonstop = False
+                        break
+                    
+                    href = await section_n.locator("a").get_attribute("href")
+                    url = f'https://www.blockstreet.co.kr{href}'
+                    url_list.append(url)
+
+                    section_cnt += 1
+
+                async_result = await async_crawling(url_list=url_list, category=category, website=website, headers=headers)
+                
+                # 요청이 실패했으면 제외
+                result = []
+                for idx, res in enumerate(async_result):
+                    if res is None:
+                        print()
+                        print(f'요청 실패한 데이터 : URL={url_list[idx]}, category={category}, website={website}')
+                    else:
+                        result.append(res)
+                
+                # end_date 이후가 아니면은 제거
+                cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
+                result, nonstop = cut_info['result'], cut_info['nonstop']
+
+                blockstreet_results.extend(result)
+                time.sleep(random.uniform(min_delay, max_delay))
+
+                await page.click('xpath=//*[@id="container"]/div[2]/div/button')
+                await page.wait_for_selector('xpath=//*[@id="container"]/div[2]/div/button')
+        except Exception as e:
+            print()
+            print(f'Playwright 동작 중 {type(e).__name__}가 발생했습니다.')
+            print(traceback.format_exc())
         
         # 작업 후 브라우저 닫기
         await browser.close()
@@ -994,48 +1039,7 @@ def web_crawling(
         case 'hankyung':
             return asyncio.run(hankyung(end_datetime=end_datetime, date_format=date_format, headers=headers))
         case 'bloomingbit':
-            bloomingbit_website = 'https://bloomingbit.io/ko/feed'
-            news_last_number = None
-
-            # Playwright 실행
-            with sync_playwright() as p:
-                # 브라우저 열기(Chromium, Firefox, WebKit 중 하나 선택 가능)
-                browser = p.chromium.launch(headless=True)
-                page = browser.new_page()
-
-                for _ in range(max_retry):
-                    try:
-                        # 블루밍비트 웹사이트로 이동
-                        page.goto(bloomingbit_website)
-
-                        # 실시간 뉴스의 전체 버튼이 로드될 떄까지 대기하고 클릭
-                        page.wait_for_selector('xpath=//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button')
-                        page.click('xpath=//*[@id="feedRealTimeHeader"]/div/ul/li[1]/button')
-                        # 가장 최신 뉴스를 클릭할 수 있을때까지 대기하고 하이퍼링크 가져오기
-                        page.wait_for_selector('xpath=//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div/section')
-                        latest_news_html = page.locator('//*[@id="feedRealTimeContainer"]/section/div/div/div/div/div[1]/div/section')
-                        all_a = latest_news_html.locator("a").all()
-                        href = all_a[-1].get_attribute("href")
-
-                        # 하이퍼링크에서 가장 마지막 숫자 가져오기
-                        news_last_number = re.split(pattern=r'/+', string=href)[-1]
-                        news_last_number = int(news_last_number)
-                    except Exception:
-                        print()
-                        print('Playwright 동작 중 실패')
-                        print(traceback.format_exc())
-                    
-                    # 가장 마지막 숫자를 불러오는 것에 성공하면 for문 중단
-                    if news_last_number is not None:
-                        break
-                    time.sleep(random.uniform(min_delay, max_delay))
-                
-                # 작업 후 브라우저 닫기
-                browser.close()
-
-            if news_last_number is None:
-                return []
-            return asyncio.run(bloomingbit(news_last_number=news_last_number, end_datetime=end_datetime, date_format=date_format, headers=headers))
+            return asyncio.run(bloomingbit(end_datetime=end_datetime, date_format=date_format, headers=headers))
         case 'coinreaders':
             return asyncio.run(coinreaders(end_datetime=end_datetime, date_format=date_format, headers=headers))
         case 'blockstreet':
@@ -1046,7 +1050,7 @@ def web_crawling(
 
 
 if __name__ == '__main__':
-    end_datetime = '2024-12-20 00:00'
+    end_datetime = '2024-12-27 00:00'
     # hankyung_result = web_crawling(website='hankyung', end_datetime=end_datetime)
     # bloomingbit_result = web_crawling(website='bloomingbit', end_datetime=end_datetime)
     # coinreaders_result = web_crawling(website='coinreaders', end_datetime=end_datetime)
