@@ -968,7 +968,6 @@ def web_crawling(
 
 if __name__ == '__main__':
     end_datetime = '2024-12-26 00:00'
-    # investing_result = web_crawling(website='investing', end_datetime=end_datetime)
     # hankyung_result = web_crawling(website='hankyung', end_datetime=end_datetime)
     # bloomingbit_result = web_crawling(website='bloomingbit', end_datetime=end_datetime)
     # coinreaders_result = web_crawling(website='coinreaders', end_datetime=end_datetime)
