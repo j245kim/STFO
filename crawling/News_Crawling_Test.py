@@ -800,9 +800,68 @@ async def coinreaders(
 
 async def blockstreet(
                         end_datetime: str, date_format: str, headers: dict[str, str],
-                        min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                        min_delay: int | float = 1, max_delay: int | float = 2
                     ) -> list[dict[str, str, None]]:
-    pass
+    """blockstreet 사이트를 크롤링 하는 함수
+
+    Args:
+        end_datetime: 크롤링할 마지막 시각
+        date_format: 시각 포맷
+        headers: 식별 정보
+        min_delay: 재시도 할 때 딜레이의 최소 시간
+        max_delay: 재시도 할 때 딜레이의 최대 시간
+
+    Returns:
+        [
+            {
+                "news_title": 뉴스 제목, str
+                "news_first_upload_time": 뉴스 최초 업로드 시각, str | None
+                "newsfinal_upload_time": 뉴스 최종 수정 시각, str | None
+                "news_author": 뉴스 작성자, str | None
+                "news_content": 뉴스 본문, str
+                "news_url": 뉴스 URL, str
+                "news_category": 뉴스 카테고리, str
+                "news_website": 뉴스 웹사이트, str
+                "note": 비고, str | None
+            },
+            {
+                                    ...
+            },
+                                    .
+                                    .
+                                    .
+        ]
+    """
+    
+    button_cnt = 0
+    category = '암호화폐'
+    website = 'blockstreet'
+    blockstreet_website = 'https://www.blockstreet.co.kr/coin-news'
+    end_date = datetime.strptime(end_datetime, date_format)
+    nonstop = True
+    blockstreet_results = []
+
+    # Playwright 실행
+    with sync_playwright() as p:
+        # 브라우저 열기(Chromium, Firefox, WebKit 중 하나 선택 가능)
+        browser = p.chromium.launch(headless=False)
+        page = browser.new_page()
+
+        # 블록스트리트 웹사이트로 이동
+        page.goto(blockstreet_website)
+
+        while True:
+            button_check = page.wait_for_selector('xpath=//*[@id="container"]/div[2]/div/button')
+
+            if button_check is None:
+                break
+
+            page.click('xpath=//*[@id="container"]/div[2]/div/button')
+
+            time.sleep(random.uniform(min_delay, max_delay))
+        
+        # 작업 후 브라우저 닫기
+        browser.close()
 
 
 def web_crawling(
