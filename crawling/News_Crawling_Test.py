@@ -422,7 +422,7 @@ async def news_crawling(
 async def async_crawling(
                         url_list: list[str], category: str, website: str, headers: dict[str, str],
                         min_delay: int | float = 0.55, max_delay: int | float = 1.55
-                        ) -> list[dict[str, str, None] | None]:
+                        ) -> list[dict[str, str, None], None]:
     """비동기로 뉴스 URL들을 크롤링하는 함수
 
     Args:
