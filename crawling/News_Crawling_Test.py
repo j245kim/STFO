@@ -893,10 +893,6 @@ async def blockstreet(
 
             await page.click('xpath=//*[@id="container"]/div[2]/div/button')
             await page.wait_for_selector('xpath=//*[@id="container"]/div[2]/div/button')
-
-            if page.locator('//*[@id="container"]/div[2]/div/button').count() == 0:
-                nonstop = False
-                break
         
         # 작업 후 브라우저 닫기
         await browser.close()
