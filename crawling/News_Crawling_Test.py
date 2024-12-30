@@ -129,14 +129,16 @@ def sync_request(
     """
 
     result = {"html": None, "response_status_code": None, "response_reason": None, "response_history": None}
-    error_status = False
 
     with httpx.Client(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding, limits=httpx.Limits(max_keepalive_connections=150, max_connections=150)) as client:
         for _ in range(max_retry):
             try:
                 # 동기 client로 HTML GET
                 response = client.get(url)
-                error_status = False
+                # 응답 기록 추가
+                result['response_status_code'] = response.status_code
+                result['response_reason'] = response.reason_phrase
+                result['response_history'] = response.history
                 # HTML 문서 정보를 불러오는 것에 성공하면 for문 중단
                 if response.status_code == httpx.codes.ok:
                     result['html'] = response.text
@@ -147,13 +149,10 @@ def sync_request(
             except Exception as e:
                 print()
                 print(f'{url}에서 {type(e).__name__}가 발생했습니다.')
-                error_status = True
-    
-    # 응답 기록 추가
-    if not error_status:
-        result['response_status_code'] = response.status_code
-        result['response_reason'] = response.reason_phrase
-        result['response_history'] = response.history
+                # 응답 기록 추가
+                result['response_status_code'] = None
+                result['response_reason'] = None
+                result['response_history'] = None
     
     return result
 
@@ -185,14 +184,16 @@ async def async_request(
     """
 
     result = {"html": None, "response_status_code": None, "response_reason": None, "response_history": None}
-    error_status = False
 
     async with httpx.AsyncClient(headers=headers, follow_redirects=follow_redirects, timeout=timeout, default_encoding=encoding, limits=httpx.Limits(max_keepalive_connections=200, max_connections=200)) as client:
         for _ in range(max_retry):
             try:
                 # 비동기 client로 HTML GET
                 response = await client.get(url)
-                error_status = False
+                # 응답 기록 추가
+                result['response_status_code'] = response.status_code
+                result['response_reason'] = response.reason_phrase
+                result['response_history'] = response.history
                 # HTML 문서 정보를 불러오는 것에 성공하면 for문 중단
                 if response.status_code == httpx.codes.ok:
                     result['html'] = response.text
@@ -203,13 +204,10 @@ async def async_request(
             except Exception as e:
                 print()
                 print(f'{url}에서 {type(e).__name__}가 발생했습니다.')
-                error_status = True
-    
-    # 응답 기록 추가
-    if not error_status:
-        result['response_status_code'] = response.status_code
-        result['response_reason'] = response.reason_phrase
-        result['response_history'] = response.history
+                # 응답 기록 추가
+                result['response_status_code'] = None
+                result['response_reason'] = None
+                result['response_history'] = None
     
     return result
 
