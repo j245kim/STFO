@@ -23,6 +23,7 @@ from concurrent import futures
 import httpx
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
 
 
 def datetime_trans(
@@ -67,7 +68,7 @@ def datetime_trans(
             news_datetime = f'{_date} {_time}'
             news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %H:%M')
         case 'blockstreet':
-            news_datetime = datetime.strptime(news_datetime, '%Y-%m-%d %H:%M')
+            news_datetime = datetime.strptime(date_time, '%Y-%m-%d %H:%M')
 
     news_datetime = datetime.strftime(news_datetime, date_format)
 
@@ -833,7 +834,7 @@ async def blockstreet(
         ]
     """
     
-    button_cnt = 0
+    section_cnt = 1
     category = '암호화폐'
     website = 'blockstreet'
     blockstreet_website = 'https://www.blockstreet.co.kr/coin-news'
@@ -842,26 +843,65 @@ async def blockstreet(
     blockstreet_results = []
 
     # Playwright 실행
-    with sync_playwright() as p:
+    async with async_playwright() as p:
         # 브라우저 열기(Chromium, Firefox, WebKit 중 하나 선택 가능)
-        browser = p.chromium.launch(headless=False)
-        page = browser.new_page()
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
 
         # 블록스트리트 웹사이트로 이동
-        page.goto(blockstreet_website)
+        await page.goto(blockstreet_website)
 
-        while True:
-            button_check = page.wait_for_selector('xpath=//*[@id="container"]/div[2]/div/button')
+        await page.wait_for_selector('xpath=//*[@id="container"]/div[2]/div/button')
+        section_list = await page.locator('//*[@id="newsList"]').locator('section').all()
+        list_unit = len(section_list)
 
-            if button_check is None:
-                break
+        while nonstop:
+            url_list = []
 
-            page.click('xpath=//*[@id="container"]/div[2]/div/button')
+            for i in range(section_cnt, section_cnt + list_unit):
+                section_n = page.locator(f'//*[@id="newsList"]/section[{i}]')
 
+                # 만약 section_n을 찾는 것에 실패하면 종료
+                if section_n.count() == 0:
+                    nonstop = False
+                    break
+                
+                href = await section_n.locator("a").get_attribute("href")
+                url = f'https://www.blockstreet.co.kr{href}'
+                url_list.append(url)
+
+                section_cnt += 1
+
+            crawl_list = [news_crawling(url=url, category=category, website=website, headers=headers) for url in url_list]
+            async_result = await asyncio.gather(*crawl_list)
+            
+            # 요청이 실패했으면 제외
+            result = []
+            for idx, res in enumerate(async_result):
+                if res is None:
+                    print()
+                    print(f'요청 실패한 데이터 : URL={url_list[idx]}, category={category}, website={website}')
+                else:
+                    result.append(res)
+            
+            # end_date 이후가 아니면은 제거
+            cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
+            result, nonstop = cut_info['result'], cut_info['nonstop']
+
+            blockstreet_results.extend(result)
             time.sleep(random.uniform(min_delay, max_delay))
+
+            await page.click('xpath=//*[@id="container"]/div[2]/div/button')
+            await page.wait_for_selector('xpath=//*[@id="container"]/div[2]/div/button')
+
+            if page.locator('//*[@id="container"]/div[2]/div/button').count() == 0:
+                nonstop = False
+                break
         
         # 작업 후 브라우저 닫기
-        browser.close()
+        await browser.close()
+    
+    return blockstreet_results
 
 
 def web_crawling(
@@ -961,13 +1001,16 @@ def web_crawling(
             return asyncio.run(bloomingbit(news_last_number=news_last_number, end_datetime=end_datetime, date_format=date_format, headers=headers))
         case 'coinreaders':
             return asyncio.run(coinreaders(end_datetime=end_datetime, date_format=date_format, headers=headers))
+        case 'blockstreet':
+            return asyncio.run(blockstreet(end_datetime=end_datetime, date_format=date_format, headers=headers))
 
 
 
 
 
 if __name__ == '__main__':
-    end_datetime = '2024-12-26 00:00'
+    end_datetime = '2024-12-20 00:00'
     # hankyung_result = web_crawling(website='hankyung', end_datetime=end_datetime)
     # bloomingbit_result = web_crawling(website='bloomingbit', end_datetime=end_datetime)
     # coinreaders_result = web_crawling(website='coinreaders', end_datetime=end_datetime)
+    # blockstreet_result = web_crawling(website='blockstreet', end_datetime=end_datetime)
