@@ -1034,17 +1034,24 @@ def web_crawling(
     min_delay = 0.55 # 재시도 할 때 딜레이의 최소 시간
     max_delay = 1.55 # 재시도 할 때 딜레이의 최대 시간
 
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     match website:
         case 'investing':
-            return asyncio.run(investing(end_datetime=end_datetime, date_format=date_format, headers=headers))
+            result = loop.run_until_complete(investing(end_datetime=end_datetime, date_format=date_format, headers=headers))
         case 'hankyung':
-            return asyncio.run(hankyung(end_datetime=end_datetime, date_format=date_format, headers=headers))
+            result = loop.run_until_complete(hankyung(end_datetime=end_datetime, date_format=date_format, headers=headers))
         case 'bloomingbit':
-            return asyncio.run(bloomingbit(end_datetime=end_datetime, date_format=date_format, headers=headers))
+            result = loop.run_until_complete(bloomingbit(end_datetime=end_datetime, date_format=date_format, headers=headers))
         case 'coinreaders':
-            return asyncio.run(coinreaders(end_datetime=end_datetime, date_format=date_format, headers=headers))
+            result = loop.run_until_complete(coinreaders(end_datetime=end_datetime, date_format=date_format, headers=headers))
         case 'blockstreet':
-            return asyncio.run(blockstreet(end_datetime=end_datetime, date_format=date_format, headers=headers))
+            result = loop.run_until_complete(blockstreet(end_datetime=end_datetime, date_format=date_format, headers=headers))
+    
+    loop.close()
+
+    return result
 
 
 def multiprocess_crawling(
@@ -1102,5 +1109,5 @@ def multiprocess_crawling(
 
 if __name__ == '__main__':
     website_list = ['hankyung', 'bloomingbit', 'coinreaders', 'blockstreet']
-    end_datetime = '2024-12-27 00:00'
+    end_datetime = '2024-12-27 12:00'
     result = multiprocess_crawling(website_list=website_list, end_datetime=end_datetime)
