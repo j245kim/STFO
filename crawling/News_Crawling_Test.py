@@ -17,6 +17,7 @@ import logging
 import traceback
 from copy import deepcopy
 from datetime import datetime
+from functools import partial
 from concurrent import futures
 
 # 파이썬 서드파티 라이브러리
@@ -747,7 +748,7 @@ async def bloomingbit(
 
 async def coinreaders_category(
                                 category: str, end_datetime: str, date_format: str, headers: dict[str, str],
-                                min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                                min_delay: int | float = 2, max_delay: int | float = 3
                                 ) -> list[dict[str, str, None]]:
     """coinreaders 사이트에서 일부 카테고리를 크롤링 하는 함수
 
@@ -792,7 +793,7 @@ async def coinreaders_category(
     coinreaders_results = []
 
     while nonstop:
-        sync_result = sync_request(url=web_page, headers=headers, min_delay=1, max_delay=2)
+        sync_result = sync_request(url=web_page, headers=headers, min_delay=min_delay, max_delay=max_delay)
         page += 1
         if category == 'Breaking_news':
             web_page = f'https://www.coinreaders.com/sub.html?page={page}&section=sc16&section2='
@@ -815,7 +816,7 @@ async def coinreaders_category(
 
         url_list = [f"https://www.coinreaders.com{url_tag.find('a')['href']}" for url_tag in url_tag_list]
 
-        async_result = await async_crawling(url_list=url_list, category=category, website=website, headers=headers)
+        async_result = await async_crawling(url_list=url_list, category=category, website=website, headers=headers, min_delay=min_delay, max_delay=max_delay)
         
         # 요청이 실패했으면 제외
         result = []
@@ -988,7 +989,7 @@ async def blockstreet(
 
 def web_crawling(
                 website: str,
-                end_datetime: str, date_format: str = '%Y-%m-%d %H:%M'
+                end_datetime: str, date_format: str
                 ) -> list[dict[str, str, None]]:
     """해당 웹사이트를 크롤링 하는 함수
 
@@ -1046,12 +1047,60 @@ def web_crawling(
             return asyncio.run(blockstreet(end_datetime=end_datetime, date_format=date_format, headers=headers))
 
 
+def multiprocess_crawling(
+                    website_list: list[str],
+                    end_datetime: str, date_format: str = '%Y-%m-%d %H:%M'
+                    ) -> dict[str, list[dict[str, str, None]]]:
+    """멀티 프로세싱으로 웹사이트를 크롤링 하는 함수
+
+    Args:
+        website_list: 웹사이트 이름 리스트
+        end_datetime: 크롤링할 마지막 시각
+        date_format: 시각 포맷
+
+    Returns:
+        {
+            "웹사이트1":    [
+                    {
+                        "news_title": 뉴스 제목, str
+                        "news_first_upload_time": 뉴스 최초 업로드 시각, str | None
+                        "newsfinal_upload_time": 뉴스 최종 수정 시각, str | None
+                        "news_author": 뉴스 작성자, str | None
+                        "news_content": 뉴스 본문, str
+                        "news_url": 뉴스 URL, str
+                        "news_category": 뉴스 카테고리, str
+                        "news_website": 뉴스 웹사이트, str
+                        "note": 비고, str | None
+                    },
+                    {
+                                            ...
+                    },
+                                            .
+                                            .
+                                            .
+                ],
+            "웹사이트2":    ...
+                                .
+                                .
+                                .
+        }
+    """
+
+    fixed_params_crawling = partial(web_crawling, end_datetime=end_datetime, date_format=date_format)
+    n = len(website_list)
+    result = dict()
+
+    with futures.ProcessPoolExecutor(max_workers=n) as executor:
+        for website, news_list in zip(website_list, executor.map(fixed_params_crawling, website_list)):
+            result[website] = news_list
+    
+    return result
+
+
 
 
 
 if __name__ == '__main__':
+    website_list = ['hankyung', 'bloomingbit', 'coinreaders', 'blockstreet']
     end_datetime = '2024-12-27 00:00'
-    # hankyung_result = web_crawling(website='hankyung', end_datetime=end_datetime)
-    # bloomingbit_result = web_crawling(website='bloomingbit', end_datetime=end_datetime)
-    # coinreaders_result = web_crawling(website='coinreaders', end_datetime=end_datetime)
-    # blockstreet_result = web_crawling(website='blockstreet', end_datetime=end_datetime)
+    result = multiprocess_crawling(website_list=website_list, end_datetime=end_datetime)
