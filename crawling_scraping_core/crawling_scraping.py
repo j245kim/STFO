@@ -64,7 +64,7 @@ class CrawlingScraping:
         """
 
         if website not in self.__possible_websites:
-            raise ValueError(f'웹사이트의 이름은 {", ".join(self.__possible_websites)} 중 하나여야 합니다.')
+            raise ValueError(f'웹사이트의 이름은 "{", ".join(self.__possible_websites)}" 중 하나여야 합니다.')
         
         if save_path is None:
             save_path = rf'{self.__data_path}\{website}_data.json'
@@ -73,8 +73,9 @@ class CrawlingScraping:
     
     @staticmethod
     async def news_crawling(
-                            url:str, category: str, website: str, headers: dict[str, str],
-                            max_retry: int = 10, min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                            url:str, category: str, website: str, change_format: str,
+                            headers: dict[str, str], max_retry: int = 10,
+                            min_delay: int | float = 0.55, max_delay: int | float = 1.55
                             ) -> dict[str, str, None] | None:
         """뉴스 URL을 바탕으로 크롤링 및 스크래핑을 하는 메소드
 
@@ -82,6 +83,7 @@ class CrawlingScraping:
             url: 뉴스 URL
             category: 뉴스 카테고리
             website: 웹사이트 이름
+            change_format: 바꾸는 포맷
             headers: 식별 정보
             max_retry: HTML 문서 정보 불러오기에 실패했을 때 재시도할 최대 횟수
             min_delay: 재시도 할 때 딜레이의 최소 시간
@@ -125,9 +127,9 @@ class CrawlingScraping:
                 upload_times = soup.find_all('span', {"class": "txt-date"})
 
                 first_upload_time = upload_times[0].text
-                first_upload_time = datetime_trans(website=website, date_time=first_upload_time)
+                first_upload_time = datetime_trans(website=website, date_time=first_upload_time, change_format=change_format)
                 last_upload_time = upload_times[1].text
-                last_upload_time = datetime_trans(website=website, date_time=last_upload_time)
+                last_upload_time = datetime_trans(website=website, date_time=last_upload_time, change_format=change_format)
 
                 # 3. 뉴스 데이터의 기사 작성자
                 author_list = soup.find_all('div', {"class": "author link subs_author_list"})
@@ -152,11 +154,11 @@ class CrawlingScraping:
                 first_upload_time = soup.find("span", {"class": "_feedReporterWithDatePublished_createDate__pphI_"})
                 if first_upload_time is not None:
                     first_upload_time = first_upload_time.text
-                    first_upload_time = datetime_trans(website=website, date_time=first_upload_time)
+                    first_upload_time = datetime_trans(website=website, date_time=first_upload_time, change_format=change_format)
                 last_upload_time = soup.find("span", {"class": "_feedReporterWithDatePublished_updateDate__xCxls"})
                 if last_upload_time is not None:
                     last_upload_time = last_upload_time.text
-                    last_upload_time = datetime_trans(website=website, date_time=last_upload_time)
+                    last_upload_time = datetime_trans(website=website, date_time=last_upload_time, change_format=change_format)
                 
                 # 3. 뉴스 데이터의 기사 작성자
                 author_list = soup.find_all('span', {"class": "_feedReporterWithDatePublished_newsReporter__nRjik"})
@@ -187,7 +189,7 @@ class CrawlingScraping:
                 # 2. 뉴스 데이터의 최초 업로드 시각과 최종 수정 시각
                 first_upload_time = soup.find("div", {"class": "writer_time"})
                 first_upload_time = first_upload_time.text
-                first_upload_time = datetime_trans(website=website, date_time=first_upload_time)
+                first_upload_time = datetime_trans(website=website, date_time=first_upload_time, change_format=change_format)
                 last_upload_time = None
 
                 # 3. 뉴스 데이터의 기사 작성자
@@ -219,10 +221,10 @@ class CrawlingScraping:
                     span = span.text.split()
                     if span[0] == '등록':
                         first_upload_time = f'{span[1]} {span[2]}'
-                        first_upload_time = datetime_trans(website=website, date_time=first_upload_time)
+                        first_upload_time = datetime_trans(website=website, date_time=first_upload_time, change_format=change_format)
                     elif span[0] == '수정':
                         last_upload_time = f'{span[1]} {span[2]}'
-                        last_upload_time = datetime_trans(website=website, date_time=last_upload_time)
+                        last_upload_time = datetime_trans(website=website, date_time=last_upload_time, change_format=change_format)
 
                 # 3. 뉴스 데이터의 기사 작성자
                 author_list = soup.find("div", {"class": "byline"})
@@ -254,7 +256,8 @@ class CrawlingScraping:
     
     @staticmethod
     async def async_crawling(
-                            url_list: list[str], category: str, website: str, headers: dict[str, str],
+                            url_list: list[str], category: str, website: str,
+                            change_format: str, headers: dict[str, str],
                             min_delay: int | float = 0.55, max_delay: int | float = 1.55
                             ) -> list[dict[str, str, None], None]:
         """비동기로 뉴스 URL들을 크롤링 및 스크래핑하는 메소드
@@ -263,6 +266,7 @@ class CrawlingScraping:
             url_list: 뉴스 URL list
             category: 뉴스 카테고리
             website: 웹사이트 이름
+            change_format: 바꾸는 포맷
             headers: 식별 정보
             min_delay: 재시도 할 때 딜레이의 최소 시간
             max_delay: 재시도 할 때 딜레이의 최대 시간
@@ -290,21 +294,23 @@ class CrawlingScraping:
         """
 
         if url_list:
-            crawl_list = [CrawlingScraping.news_crawling(url=url, category=category, website=website, headers=headers, min_delay=min_delay, max_delay=max_delay) for url in url_list]
+            crawl_list = [CrawlingScraping.news_crawling(url=url, category=category, website=website, change_format=change_format, headers=headers, min_delay=min_delay, max_delay=max_delay) for url in url_list]
             async_result = await asyncio.gather(*crawl_list)
             return async_result
         return []
     
     @staticmethod
     async def hankyung(
-                        end_datetime: str, date_format: str, headers: dict[str, str],
+                        end_datetime: str, date_format: str,
+                        change_format: str, headers: dict[str, str],
                         min_delay: int | float = 0.55, max_delay: int | float = 1.55
                         ) -> list[dict[str, str, None]]:
-        """hankyung 사이트를 크롤링 하는 함수
+        """hankyung 사이트를 크롤링 및 스크래핑 하는 메소드
 
         Args:
-            end_datetime: 크롤링할 마지막 시각
+            end_datetime: 크롤링 및 스크래핑할 마지막 시각
             date_format: 시각 포맷
+            change_format: 바꾸는 포맷
             headers: 식별 정보
             min_delay: 재시도 할 때 딜레이의 최소 시간
             max_delay: 재시도 할 때 딜레이의 최대 시간
@@ -360,7 +366,7 @@ class CrawlingScraping:
 
             url_list = [url_tag.find('a')["href"] for url_tag in url_tag_list]
 
-            async_result = await CrawlingScraping.async_crawling(url_list=url_list, category=category, website=website, headers=headers)
+            async_result = await CrawlingScraping.async_crawling(url_list=url_list, category=category, website=website, change_format=change_format, headers=headers)
             
             # 요청이 실패했으면 제외
             result = []
@@ -372,7 +378,7 @@ class CrawlingScraping:
                     result.append(res)
             
             # end_date 이후가 아니면은 제거
-            cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
+            cut_info = datetime_cut(news_list=result, end_date=end_date, change_format=change_format)
             result, nonstop = cut_info['result'], cut_info['nonstop']
 
             hankyung_results.extend(result)
@@ -382,14 +388,16 @@ class CrawlingScraping:
 
     @staticmethod
     async def bloomingbit(
-                        end_datetime: str, date_format: str, headers: dict[str, str],
+                        end_datetime: str, date_format: str,
+                        change_format: str, headers: dict[str, str],
                         min_delay: int | float = 0.55, max_delay: int | float = 1.55
                         ) -> list[dict[str, str, None]]:
-        """bloomingbit 사이트를 크롤링 하는 함수
+        """bloomingbit 사이트를 크롤링 및 스크래핑 하는 메소드
 
         Args:
-            end_datetime: 크롤링할 마지막 시각
+            end_datetime: 크롤링 및 스크래핑할 마지막 시각
             date_format: 시각 포맷
+            change_format: 바꾸는 포맷
             headers: 식별 정보
             min_delay: 재시도 할 때 딜레이의 최소 시간
             max_delay: 재시도 할 때 딜레이의 최대 시간
@@ -476,7 +484,7 @@ class CrawlingScraping:
             
             url_list = [f'https://bloomingbit.io/ko/feed/news/{url}' for url in range(first_url_number, last_url_number - 1, -1)]
         
-            async_result = await CrawlingScraping.async_crawling(url_list=url_list, category=category, website=website, headers=headers)
+            async_result = await CrawlingScraping.async_crawling(url_list=url_list, category=category, website=website, change_format=change_format, headers=headers)
             
             # 요청이 실패했으면 제외
             result = []
@@ -488,7 +496,7 @@ class CrawlingScraping:
                     result.append(res)
             
             # end_date 이후가 아니면은 제거
-            cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
+            cut_info = datetime_cut(news_list=result, end_date=end_date, change_format=change_format)
             result, nonstop = cut_info['result'], cut_info['nonstop']
 
             bloomingbit_results.extend(result)
@@ -498,15 +506,17 @@ class CrawlingScraping:
 
     @staticmethod
     async def coinreaders_category(
-                                    category: str, end_datetime: str, date_format: str, headers: dict[str, str],
+                                    category: str, end_datetime: str, date_format: str,
+                                    change_format: str, headers: dict[str, str],
                                     min_delay: int | float = 2, max_delay: int | float = 3
                                     ) -> list[dict[str, str, None]]:
-        """coinreaders 사이트에서 일부 카테고리를 크롤링 하는 함수
+        """coinreaders 사이트에서 일부 카테고리를 크롤링 및 스크래핑 하는 메소드
 
         Args:
             category: 뉴스 카테고리
-            end_datetime: 크롤링할 마지막 시각
+            end_datetime: 크롤링 및 스크래핑할 마지막 시각
             date_format: 시각 포맷
+            change_format: 바꾸는 포맷
             headers: 식별 정보
             min_delay: 재시도 할 때 딜레이의 최소 시간
             max_delay: 재시도 할 때 딜레이의 최대 시간
@@ -567,7 +577,7 @@ class CrawlingScraping:
 
             url_list = [f"https://www.coinreaders.com{url_tag.find('a')['href']}" for url_tag in url_tag_list]
 
-            async_result = await CrawlingScraping.async_crawling(url_list=url_list, category=category, website=website, headers=headers, min_delay=min_delay, max_delay=max_delay)
+            async_result = await CrawlingScraping.async_crawling(url_list=url_list, category=category, website=website, change_format=change_format, headers=headers, min_delay=min_delay, max_delay=max_delay)
             
             # 요청이 실패했으면 제외
             result = []
@@ -579,7 +589,7 @@ class CrawlingScraping:
                     result.append(res)
             
             # end_date 이후가 아니면은 제거
-            cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
+            cut_info = datetime_cut(news_list=result, end_date=end_date, change_format=change_format)
             result, nonstop = cut_info['result'], cut_info['nonstop']
 
             coinreaders_results.extend(result)
@@ -589,13 +599,15 @@ class CrawlingScraping:
 
     @staticmethod
     async def coinreaders(
-                            end_datetime: str, date_format: str, headers: dict[str, str],
+                            end_datetime: str, date_format: str,
+                            change_format: str, headers: dict[str, str],
                         )-> list[dict[str, str, None]]:
-        """coinreaders 사이트를 크롤링 하는 함수
+        """coinreaders 사이트를 크롤링 및 스크래핑 하는 메소드
 
         Args:
-            end_datetime: 크롤링할 마지막 시각
+            end_datetime: 크롤링 및 스크래핑할 마지막 시각
             date_format: 시각 포맷
+            change_format: 바꾸는 포맷
             headers: 식별 정보
 
         Returns:
@@ -621,8 +633,8 @@ class CrawlingScraping:
         """
 
         async with asyncio.TaskGroup() as tg:
-            task1 = tg.create_task(CrawlingScraping.coinreaders_category(category='Breaking_news', end_datetime=end_datetime, date_format=date_format, headers=headers))
-            task2 = tg.create_task(CrawlingScraping.coinreaders_category(category='Crypto&Blockchain', end_datetime=end_datetime, date_format=date_format, headers=headers))
+            task1 = tg.create_task(CrawlingScraping.coinreaders_category(category='Breaking_news', end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
+            task2 = tg.create_task(CrawlingScraping.coinreaders_category(category='Crypto&Blockchain', end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
 
         breaking_news_list = task1.result()
         crypto_blockchain_news_list = task2.result()
@@ -631,14 +643,16 @@ class CrawlingScraping:
 
     @staticmethod
     async def blockstreet(
-                            end_datetime: str, date_format: str, headers: dict[str, str],
+                            end_datetime: str, date_format: str,
+                            change_format: str, headers: dict[str, str],
                             min_delay: int | float = 1, max_delay: int | float = 2
                         ) -> list[dict[str, str, None]]:
-        """blockstreet 사이트를 크롤링 하는 함수
+        """blockstreet 사이트를 크롤링 및 스크래핑 하는 메소드
 
         Args:
-            end_datetime: 크롤링할 마지막 시각
+            end_datetime: 크롤링 및 스크래핑할 마지막 시각
             date_format: 시각 포맷
+            change_format: 바꾸는 포맷
             headers: 식별 정보
             min_delay: 재시도 할 때 딜레이의 최소 시간
             max_delay: 재시도 할 때 딜레이의 최대 시간
@@ -705,7 +719,7 @@ class CrawlingScraping:
 
                         section_cnt += 1
 
-                    async_result = await CrawlingScraping.async_crawling(url_list=url_list, category=category, website=website, headers=headers)
+                    async_result = await CrawlingScraping.async_crawling(url_list=url_list, category=category, website=website, change_format=change_format, headers=headers)
                     
                     # 요청이 실패했으면 제외
                     result = []
@@ -717,7 +731,7 @@ class CrawlingScraping:
                             result.append(res)
                     
                     # end_date 이후가 아니면은 제거
-                    cut_info = datetime_cut(news_list=result, end_date=end_date, date_format=date_format)
+                    cut_info = datetime_cut(news_list=result, end_date=end_date, change_format=change_format)
                     result, nonstop = cut_info['result'], cut_info['nonstop']
 
                     blockstreet_results.extend(result)
@@ -737,15 +751,16 @@ class CrawlingScraping:
     
     @staticmethod
     def web_crawling(
-                    website: str,
-                    end_datetime: str, date_format: str
+                    website: str, end_datetime: str,
+                    date_format: str, change_format: str
                     ) -> list[dict[str, str, None]]:
-        """해당 웹사이트를 크롤링 하는 함수
+        """해당 웹사이트를 크롤링 및 스크래핑 하는 메소드
 
         Args:
             website: 웹사이트 이름
-            end_datetime: 크롤링할 마지막 시각
+            end_datetime: 크롤링 및 스크래핑할 마지막 시각
             date_format: 시각 포맷
+            change_format: 바꾸는 포맷
 
         Returns:
             [
@@ -780,28 +795,28 @@ class CrawlingScraping:
 
         match website:
             case 'hankyung':
-                result = loop.run_until_complete(CrawlingScraping.hankyung(end_datetime=end_datetime, date_format=date_format, headers=headers))
+                result = loop.run_until_complete(CrawlingScraping.hankyung(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
             case 'bloomingbit':
-                result = loop.run_until_complete(CrawlingScraping.bloomingbit(end_datetime=end_datetime, date_format=date_format, headers=headers))
+                result = loop.run_until_complete(CrawlingScraping.bloomingbit(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
             case 'coinreaders':
-                result = loop.run_until_complete(CrawlingScraping.coinreaders(end_datetime=end_datetime, date_format=date_format, headers=headers))
+                result = loop.run_until_complete(CrawlingScraping.coinreaders(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
             case 'blockstreet':
-                result = loop.run_until_complete(CrawlingScraping.blockstreet(end_datetime=end_datetime, date_format=date_format, headers=headers))
+                result = loop.run_until_complete(CrawlingScraping.blockstreet(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
         
         loop.close()
 
         return result
 
     def run(self,
-            website_list: list[str],
-            end_datetime: str, date_format: str = '%Y-%m-%d %H:%M'
+            end_datetime: str, date_format: str,
+            change_format: str = '%Y-%m-%d %H:%M'
             ) -> dict[str, list[dict[str, str, None]]]:
         """멀티 프로세싱으로 웹사이트를 크롤링 및 스크래핑 하는 메소드
 
         Args:
-            website_list: 웹사이트 이름 리스트
             end_datetime: 크롤링 및 스크래핑할 마지막 시각
             date_format: 시각 포맷
+            change_format: 바꾸는 포맷
 
         Returns:
             {
@@ -831,7 +846,8 @@ class CrawlingScraping:
             }
         """
 
-        fixed_params_crawling = partial(CrawlingScraping.web_crawling, end_datetime=end_datetime, date_format=date_format)
+        website_list = list(self._crawling_scraping.keys())
+        fixed_params_crawling = partial(CrawlingScraping.web_crawling, end_datetime=end_datetime, date_format=date_format, change_format=change_format)
         n = len(self._crawling_scraping)
 
         with futures.ProcessPoolExecutor(max_workers=n) as executor:

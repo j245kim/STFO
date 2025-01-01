@@ -6,19 +6,16 @@ from datetime import datetime
 from copy import deepcopy
 
 
-def datetime_trans(
-                    website: str,
-                   date_time: str, date_format: str = '%Y-%m-%d %H:%M'
-                   ) -> str:
+def datetime_trans(website: str, date_time: str, change_format: str) -> str:
     """웹사이트에 따른 업로드 시각, 수정 시각들을 같은 포맷으로 바꾸는 함수
 
     Args:
         website: 웹사이트 이름
         date_time: 바꿀 시각
-        date_format: 바꾸는 포맷
+        change_format: 바꾸는 포맷
     
     Return:
-        2000-01-01 23:59 형태의 str 포맷, 단 포맷은 사용자가 지정 가능
+        2000-01-01 23:59 형태등의 str, 단 포맷은 사용자가 지정 가능
     """
         
     match website:
@@ -42,21 +39,21 @@ def datetime_trans(
         case 'blockstreet':
             news_datetime = datetime.strptime(date_time, '%Y-%m-%d %H:%M')
 
-    news_datetime = datetime.strftime(news_datetime, date_format)
+    news_datetime = datetime.strftime(news_datetime, change_format)
 
     return news_datetime
 
 
 def datetime_cut(
                 news_list: list[dict[str, str, None]],
-                end_date: datetime, date_format: str = '%Y-%m-%d %H:%M'
+                end_date: datetime, change_format: str
                 ) -> dict[str, list[dict[str, str, None]], bool]:
     """end_date보다 빠른 날짜의 데이터들을 제거하는 함수
 
     Args:
         news_list: 크롤링 및 스크래핑한 뉴스 데이터들
         end_date: 기준 시각
-        date_format: 날짜 포맷
+        change_format: 바꾸는 포맷
     
     Returns
         {
@@ -67,7 +64,7 @@ def datetime_cut(
     
     info = {"result": deepcopy(news_list), 'nonstop': True}
 
-    while info['result'] and (datetime.strptime(info['result'][-1]['news_first_upload_time'], date_format) < end_date):
+    while info['result'] and (datetime.strptime(info['result'][-1]['news_first_upload_time'], change_format) < end_date):
             info['nonstop'] = False
             del info['result'][-1]
 
