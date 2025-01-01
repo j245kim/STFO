@@ -1,5 +1,7 @@
 import os
 
+from crawling_scraping_core.crawling_scraping import CrawlingScraping
+
 if __name__ == '__main__':
     # 현재 'Crawling_App.py'가 있는 디렉토리 경로 가져오기
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,3 +22,14 @@ if __name__ == '__main__':
     # datas 폴더는 있지만 newsdata 폴더가 없으면 news_data 폴더 생성
     elif not os.path.exists(news_data_dir):
         os.mkdir(news_data_dir)
+    
+
+
+    cs = CrawlingScraping()
+    cs.add_website('hankyung')
+    cs.add_website('blockstreet')
+
+    end_datetime, date_format = '2024-12-31 00:00', '%Y-%m-%d %H:%M'
+
+    result = cs.run(end_datetime=end_datetime, date_format=date_format)
+    cs.to_json()
