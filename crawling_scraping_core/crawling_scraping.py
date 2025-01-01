@@ -790,22 +790,15 @@ class CrawlingScraping:
                     'User-Agent': user_agent
                 }
 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
         match website:
             case 'hankyung':
-                result = loop.run_until_complete(CrawlingScraping.hankyung(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
+                return asyncio.run(CrawlingScraping.hankyung(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
             case 'bloomingbit':
-                result = loop.run_until_complete(CrawlingScraping.bloomingbit(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
+                return asyncio.run(CrawlingScraping.bloomingbit(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
             case 'coinreaders':
-                result = loop.run_until_complete(CrawlingScraping.coinreaders(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
+                return asyncio.run(CrawlingScraping.coinreaders(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
             case 'blockstreet':
-                result = loop.run_until_complete(CrawlingScraping.blockstreet(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
-        
-        loop.close()
-
-        return result
+                return asyncio.run(CrawlingScraping.blockstreet(end_datetime=end_datetime, date_format=date_format, change_format=change_format, headers=headers))
 
     def run(self,
             end_datetime: str, date_format: str,
