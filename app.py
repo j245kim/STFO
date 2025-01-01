@@ -1,6 +1,14 @@
+# -*- coding: utf-8 -*-
+
+# 파이썬 표준 라이브러리
 import os
 
-from crawling_scraping_core.crawling_scraping import CrawlingScraping
+# 사용자 정의 라이브러리
+from crawling_scraping_core import crawling_scraping
+
+
+
+
 
 if __name__ == '__main__':
     # 현재 'Crawling_App.py'가 있는 디렉토리 경로 가져오기
@@ -25,7 +33,7 @@ if __name__ == '__main__':
     
 
 
-    cs = CrawlingScraping()
+    cs = crawling_scraping.CrawlingScraping()
     cs.add_website('hankyung')
     cs.add_website('blockstreet')
 
