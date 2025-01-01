@@ -351,7 +351,7 @@ class CrawlingScraping:
             web_page = f'https://www.hankyung.com/koreamarket/news/crypto?page={page}'
             
             # html 문서 불러오기에 실패했으면 다음 페이지로 넘기기
-            if sync_result['html'] is None or sync_result['response_reason'] != 'OK':
+            if sync_result['html'] is None:
                 print()
                 print(f'{page}번 페이지의 HTML 문서 정보를 불러오는데 실패했습니다.')
                 continue
@@ -562,7 +562,7 @@ class CrawlingScraping:
                 web_page = f'https://www.coinreaders.com/sub.html?page={page}&section=sc21&section2='
             
             # html 문서 불러오기에 실패했으면 다음 페이지로 넘기기
-            if sync_result['html'] is None or sync_result['response_reason'] != 'OK':
+            if sync_result['html'] is None:
                 print()
                 print(f'{page}번 페이지의 HTML 문서 정보를 불러오는데 실패했습니다.')
                 continue
