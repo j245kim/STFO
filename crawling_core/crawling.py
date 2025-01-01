@@ -29,6 +29,8 @@ from concurrent import futures
 import httpx
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
+from http_process import sync_request, async_request
+from preprocessing import datetime_trans, datetime_cut
 
 
 class NewsInfo:
@@ -37,7 +39,7 @@ class NewsInfo:
                  save_path: str
                  ) -> None:
         self._results = [] # 크롤링한 데이터들
-        self._website = website_name.capitalize() # 크롤링한 사이트 이름
+        self._website = website_name # 크롤링한 사이트 이름
         self._save_path = save_path # 저장 경로
 
     def __len__(self) -> int:
