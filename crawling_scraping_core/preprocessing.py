@@ -60,7 +60,7 @@ def datetime_cut(
     
     Returns
         {
-            "result": 자르기 완료한 크롤링 및 스크래핑한 뉴스 데이터들, list[dict[str, str, None]]
+            "result": 자르기 완료한 크롤링 및 스크래핑 뉴스 데이터들, list[dict[str, str, None]]
             "nonstop": 진행 여부 부울 변수, bool
         }
     """
