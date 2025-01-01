@@ -7,13 +7,10 @@
 # 반드시 https://playwright.dev/python/docs/intro 에서 Playwright 설치 관련 가이드 참고
 
 # 파이썬 표준 라이브러리
-import os
-import json
 import re
 import random
 import time
 import asyncio
-import logging
 import traceback
 from copy import deepcopy
 from datetime import datetime
@@ -869,11 +866,9 @@ async def coinreaders(
         ]
     """
 
-    task1 = asyncio.create_task(coinreaders_category(category='Breaking_news', end_datetime=end_datetime, date_format=date_format, headers=headers))
-    task2 = asyncio.create_task(coinreaders_category(category='Crypto&Blockchain', end_datetime=end_datetime, date_format=date_format, headers=headers))
-    
-    await task1
-    await task2
+    async with asyncio.TaskGroup() as tg:
+        task1 = tg.create_task(coinreaders_category(category='Breaking_news', end_datetime=end_datetime, date_format=date_format, headers=headers))
+        task2 = tg.create_task(coinreaders_category(category='Crypto&Blockchain', end_datetime=end_datetime, date_format=date_format, headers=headers))
 
     breaking_news_list = task1.result()
     crypto_blockchain_news_list = task2.result()
@@ -1109,5 +1104,8 @@ def multiprocess_crawling(
 
 if __name__ == '__main__':
     website_list = ['hankyung', 'bloomingbit', 'coinreaders', 'blockstreet']
-    end_datetime = '2024-12-27 12:00'
+    end_datetime = '2024-12-31 00:00'
     result = multiprocess_crawling(website_list=website_list, end_datetime=end_datetime)
+    for website in website_list:
+        print(f"{result[website][0]['news_title']}, {result[website][0]['news_url']}")
+        print(f"{result[website][-1]['news_title']}, {result[website][-1]['news_url']}")

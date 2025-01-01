@@ -1,24 +1,34 @@
-# Crawling_Core.py
+# -*- coding: utf-8 -*-
 """코인 뉴스 사이트에서 크롤링하는 Python 모듈
 
 크롤링을 하는데 사이트마다 HTML 문서 구조도 다르고, 멀티 스레딩을 다루는 것도 솔직히 쉽지가 않다.
 그래서 이 모듈로 좀 더 쉽게 크롤링을 하도록 한다.
 """
 
-# Python 라이브러리
+# 설치가 필요한 라이브러리
+# pip install httpx
+# pip install beautifulsoup4
+# pip install pytest-playwright
+# 반드시 https://playwright.dev/python/docs/intro 에서 Playwright 설치 관련 가이드 참고
+
 # 파이썬 표준 라이브러리
 import os
 import json
 import re
 import random
 import time
+import asyncio
+import logging
 import traceback
+from copy import deepcopy
 from datetime import datetime
 from functools import partial
 from concurrent import futures
 
 # 파이썬 서드파티 라이브러리
+import httpx
 from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright
 
 
 class NewsInfo:
