@@ -1106,6 +1106,3 @@ if __name__ == '__main__':
     website_list = ['hankyung', 'bloomingbit', 'coinreaders', 'blockstreet']
     end_datetime = '2024-12-31 00:00'
     result = multiprocess_crawling(website_list=website_list, end_datetime=end_datetime)
-    for website in website_list:
-        print(f"{result[website][0]['news_title']}, {result[website][0]['news_url']}")
-        print(f"{result[website][-1]['news_title']}, {result[website][-1]['news_url']}")
