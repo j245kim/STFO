@@ -31,8 +31,8 @@ from preprocessing import datetime_trans, datetime_cut
 
 class NewsInfo:
     def __init__(self, website_name: str, save_path: str) -> None:
-        self._results = [] # 크롤링한 데이터들
-        self.__website = website_name # 크롤링한 사이트 이름
+        self._results = [] # 크롤링 및 스크래핑한 데이터들
+        self.__website = website_name # 크롤링 및 스크래핑한 사이트 이름
         self.__save_path = save_path # 저장 경로
 
     def __len__(self) -> int:
@@ -55,11 +55,12 @@ class CrawlingScraping:
         self.__stfo_path = Path(__file__).parents[1]
         self.__data_path = rf'{self.__stfo_path}\datas\news_data'
     
-    def add_website(self, website_name: str) -> bool:
+    def add_website(self, website_name: str, save_path: str = None) -> bool:
         """크롤링 및 스크래핑할 사이트를 추가하는 메소드
         
         Args:
             website_name: 크롤링 및 스크래핑할 사이트 이름
+            save_path: 크롤링 및 스크래핑한 데이터를 저장할 경로
         
         Returns:
             크롤링 및 스크래핑할 사이트가 성공적으로 추가되었는지 여부, bool
@@ -68,9 +69,21 @@ class CrawlingScraping:
         if website_name not in self.__possible_sites:
             raise ValueError(f'사이트의 이름은 {", ".join(self.__possible_sites)} 중 하나여야 합니다.')
         
-        data_path = rf'{self.__data_path}\{website_name}_data.json'
-        self._crawling_scraping[website_name] = NewsInfo(website_name=website_name, save_path=data_path)
+        if save_path is None:
+            save_path = rf'{self.__data_path}\{website_name}_data.json'
+        self._crawling_scraping[website_name] = NewsInfo(website_name=website_name, save_path=save_path)
         return True
+    
+    def run(self, end_datetime: str, date_format: str) -> None:
+        """크롤링 및 스크래핑을 실행하는 메소드
+        
+        Args:
+            end_datetime: 크롤링 및 스크래핑할 마지막 시각
+            date_format: 시각 포맷
+        
+        Returns:
+        
+        """
 
     def to_json(self) -> None:
         """크롤링 및 스크래핑한 데이터들을 json 파일로 저장하는 메소드"""
