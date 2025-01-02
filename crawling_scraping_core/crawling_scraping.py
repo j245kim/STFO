@@ -7,6 +7,7 @@
 # 반드시 https://playwright.dev/python/docs/intro 에서 Playwright 설치 관련 가이드 참고
 
 # 파이썬 표준 라이브러리
+import os
 import json
 import re
 import random
@@ -46,11 +47,28 @@ class NewsInfo:
             json.dump(self._results, f, ensure_ascii=False, indent=4)
 
 class CrawlingScraping:
-    def __init__(self) -> None:
+    def __init__(self, record_log: bool = False) -> None:
         self._crawling_scraping = dict()
         self.__possible_websites = ['hankyung', 'bloomingbit', 'coinreaders', 'blockstreet']
         self.__stfo_path = Path(__file__).parents[1]
-        self.__data_path = rf'{self.__stfo_path}\datas\news_data'
+        self.__logs_path = rf'{self.__stfo_path}\logs'
+        self.__logs_data_path = rf'{self.__stfo_path}\logs\crawling_scraping_log'
+        self.__datas_path = rf'{self.__stfo_path}\datas'
+        self.__datas_news_path = rf'{self.__stfo_path}\datas\news_data'
+
+        if record_log:
+            # logs 폴더가 없으면 logs 폴더와 그 하위 폴더로 crawling_scraping_log 폴더 생성
+            if not os.path.exists(self.__logs_path):
+                os.makedirs(self.__logs_data_path, exist_ok=True)
+            # logs 폴더는 있지만 crawling_scraping_log 폴더가 없으면 crawling_scraping_log 폴더 생성
+            elif not os.path.exists(self.__logs_data_path):
+                os.mkdir(self.__logs_data_path)
+        # datas 폴더가 없으면 datas 폴더와 그 하위 폴더로 news_data 폴더 생성
+        if not os.path.exists(self.__datas_path):
+            os.makedirs(self.__datas_news_path, exist_ok=True)
+        # datas 폴더는 있지만 newsdata 폴더가 없으면 news_data 폴더 생성
+        elif not os.path.exists(self.__datas_news_path):
+            os.mkdir(self.__datas_news_path)
     
     def add_website(self, website: str, save_path: str = None) -> bool:
         """크롤링 및 스크래핑할 사이트를 추가하는 메소드
@@ -67,7 +85,7 @@ class CrawlingScraping:
             raise ValueError(f'웹사이트의 이름은 "{", ".join(self.__possible_websites)}" 중 하나여야 합니다.')
         
         if save_path is None:
-            save_path = rf'{self.__data_path}\{website}_data.json'
+            save_path = rf'{self.__datas_news_path}\{website}_data.json'
         self._crawling_scraping[website] = NewsInfo(website=website, save_path=save_path)
         return True
     
