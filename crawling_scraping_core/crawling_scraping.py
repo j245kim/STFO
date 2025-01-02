@@ -95,7 +95,7 @@ class CrawlingScraping:
     async def news_crawling(
                             url:str, category: str, website: str, change_format: str,
                             headers: dict[str, str], max_retry: int = 10,
-                            min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                            min_delay: int | float = 2, max_delay: int | float = 3
                             ) -> dict[str, str, None] | None:
         """뉴스 URL을 바탕으로 크롤링 및 스크래핑을 하는 메소드
 
@@ -278,7 +278,7 @@ class CrawlingScraping:
     async def async_crawling(
                             url_list: list[str], category: str, website: str,
                             change_format: str, headers: dict[str, str],
-                            min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                            min_delay: int | float = 2, max_delay: int | float = 3
                             ) -> list[dict[str, str, None], None]:
         """비동기로 뉴스 URL들을 크롤링 및 스크래핑하는 메소드
 

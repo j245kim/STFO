@@ -12,7 +12,7 @@ import httpx
 def sync_request(
                 url: str, headers: dict[str, str], follow_redirects: bool = True,
                 timeout: int | float = 90, encoding: str = 'utf-8', max_retry: int = 10,
-                min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                min_delay: int | float = 2, max_delay: int | float = 3
                  ) -> dict[str, int, str, httpx.Response, None]:
     """동기로 HTML 문서 정보를 불러오는 함수
 
@@ -69,7 +69,7 @@ def sync_request(
 async def async_request(
                         url: str, headers: dict[str, str], follow_redirects: bool = True,
                         timeout: int | float = 90, encoding: str = 'utf-8', max_retry: int = 10,
-                        min_delay: int | float = 0.55, max_delay: int | float = 1.55
+                        min_delay: int | float = 2, max_delay: int | float = 3
                         ) -> dict[str, int, str, httpx.Response, None]:
     """비동기로 HTML 문서 정보를 불러오는 함수
 
