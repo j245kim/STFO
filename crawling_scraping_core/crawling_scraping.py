@@ -757,8 +757,10 @@ class CrawlingScraping:
                     blockstreet_results.extend(result)
                     time.sleep(random.uniform(min_delay, max_delay))
 
+                    # 버튼이 없으면 종료
                     button = page.locator('//*[@id="container"]/div[2]/div/button')
-                    if button.count() == 0:
+                    button_cnt = await button.count()
+                    if button_cnt == 0:
                         nonstop = False
                         break
                     await page.click('xpath=//*[@id="container"]/div[2]/div/button')
