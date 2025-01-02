@@ -807,7 +807,8 @@ class CrawlingScraping:
         # User-Agent 변경을 위한 옵션 설정
         user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         headers = {
-                    'User-Agent': user_agent
+                    'User-Agent': user_agent,
+                    "Connection": "close"
                 }
 
         match website:

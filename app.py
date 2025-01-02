@@ -6,14 +6,11 @@ from crawling_scraping_core import crawling_scraping
 
 
 
-
-
 if __name__ == '__main__':
     cs = crawling_scraping.CrawlingScraping(record_log=True)
-    cs.add_website('hankyung')
-    cs.add_website('bloomingbit')
-    cs.add_website('coinreaders')
-    cs.add_website('blockstreet')
+    website_list = ('hankyung', 'bloomingbit', 'coinreaders', 'blockstreet')
+    for website in website_list:
+        cs.add_website(website=website)
 
     end_datetime, date_format = '2025-01-01 00:00', '%Y-%m-%d %H:%M'
 
