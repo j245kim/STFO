@@ -323,7 +323,7 @@ class CrawlingScraping:
     async def hankyung(
                         end_datetime: str, date_format: str,
                         change_format: str, headers: dict[str, str],
-                        min_delay: int | float = 1, max_delay: int | float = 2
+                        min_delay: int | float = 0.55, max_delay: int | float = 1.55
                         ) -> list[dict[str, str, None]]:
         """hankyung 사이트를 크롤링 및 스크래핑 하는 메소드
 
@@ -410,7 +410,7 @@ class CrawlingScraping:
     async def bloomingbit(
                         end_datetime: str, date_format: str,
                         change_format: str, headers: dict[str, str],
-                        min_delay: int | float = 1, max_delay: int | float = 2
+                        min_delay: int | float = 0.55, max_delay: int | float = 1.55
                         ) -> list[dict[str, str, None]]:
         """bloomingbit 사이트를 크롤링 및 스크래핑 하는 메소드
 

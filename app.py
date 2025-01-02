@@ -15,7 +15,7 @@ if __name__ == '__main__':
     cs.add_website('coinreaders')
     cs.add_website('blockstreet')
 
-    end_datetime, date_format = '2024-12-31 00:00', '%Y-%m-%d %H:%M'
+    end_datetime, date_format = '2025-01-01 00:00', '%Y-%m-%d %H:%M'
 
     result = cs.run(end_datetime=end_datetime, date_format=date_format)
     cs.to_json()
