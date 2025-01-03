@@ -9,7 +9,7 @@ from crawling_scraping_core import crawling_scraping
 if __name__ == '__main__':
     cs = crawling_scraping.CrawlingScraping(record_log=True)
     end_datetime, date_format = '2015-01-01 00:00', '%Y-%m-%d %H:%M'
-    website_list = ('hankyung', 'bloomingbit', 'coinreaders', 'blockstreet')
+    website_list = ('hankyung', 'bloomingbit', 'blockstreet')
     for website in website_list:
         cs.add_website(website=website)
 

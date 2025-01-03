@@ -189,8 +189,13 @@ class CrawlingScraping:
                     author = None
                 
                 # 4. 뉴스 데이터의 본문
+                # 블루밍비트의 뉴스 본문 태그가 중간에 바뀌는 거 보정
                 content = soup.find("div", {"class": "_feedMainContent_feedDetailArticle__B_0Sy _feedMainContent_markdown__s5mjo"})
-                content = content.prettify()
+                if content is not None:
+                    content = content.prettify()
+                else:
+                    content = soup.find("div", {"class": "_feedMainContent_feedDetailArticle__B_0Sy _feedMainContent_html__10fDg"})
+                    content = content.prettify()
 
                 # 7. 뉴스 category
                 category = soup.find("h3", {"class": "_feedType_feedTypeLabel__DQpII"})
@@ -757,10 +762,11 @@ class CrawlingScraping:
                     blockstreet_results.extend(result)
                     time.sleep(random.uniform(min_delay, max_delay))
 
-                    # 버튼이 없으면 종료
+                    # 버튼이 없거나 비활성화면 종료
                     button = page.locator('//*[@id="container"]/div[2]/div/button')
-                    button_cnt = await button.count()
-                    if button_cnt == 0:
+                    button_visible = await button.is_visible()
+                    button_enable = await button.is_enabled()
+                    if not button_visible or not button_enable:
                         nonstop = False
                         break
                     await page.click('xpath=//*[@id="container"]/div[2]/div/button')
