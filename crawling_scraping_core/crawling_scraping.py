@@ -408,7 +408,7 @@ class CrawlingScraping:
 
             hankyung_results.extend(result)
             time.sleep(random.uniform(min_delay, max_delay))
-        
+        print('hankyung 완료!')
         return hankyung_results
 
     @staticmethod
@@ -501,11 +501,7 @@ class CrawlingScraping:
         while nonstop:
             first_url_number = news_last_number
             last_url_number = max(2, news_last_number - get_cnt)
-
             news_last_number -= (get_cnt + 1)
-            # 가장 마지막 페이지인 1페이지는 삭제된 기사이므로 그 아래 포함 종료
-            if news_last_number <= 1:
-                nonstop = False
             
             url_list = [f'https://bloomingbit.io/ko/feed/news/{url}' for url in range(first_url_number, last_url_number - 1, -1)]
         
@@ -526,7 +522,12 @@ class CrawlingScraping:
 
             bloomingbit_results.extend(result)
             time.sleep(random.uniform(min_delay, max_delay))
-        
+
+            # 가장 마지막 페이지인 1페이지는 삭제된 기사이므로 그 아래 포함 종료
+            if news_last_number <= 1:
+                nonstop = False
+                break
+        print('bloomingbit 완료!')
         return bloomingbit_results
 
     @staticmethod
@@ -664,6 +665,7 @@ class CrawlingScraping:
         breaking_news_list = task1.result()
         crypto_blockchain_news_list = task2.result()
         coinreaders_result = breaking_news_list + crypto_blockchain_news_list
+        print('coinreaders 완료!')
         return coinreaders_result
 
     @staticmethod
@@ -778,7 +780,7 @@ class CrawlingScraping:
             
             # 작업 후 브라우저 닫기
             await browser.close()
-        
+        print('blockstreet 완료!')
         return blockstreet_results
     
     @staticmethod
