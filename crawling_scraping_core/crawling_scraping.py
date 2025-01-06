@@ -51,7 +51,7 @@ class NewsInfo:
 class CrawlingScraping:
     def __init__(self, record_log: bool = False) -> None:
         self._crawling_scraping = dict()
-        self.__possible_websites = ['hankyung', 'bloomingbit', 'blockstreet']
+        self.__possible_websites = ('hankyung', 'bloomingbit', 'blockstreet')
         self.__stfo_path = Path(__file__).parents[1]
         self.__logs_path = rf'{self.__stfo_path}\logs'
         self.__logs_data_path = rf'{self.__stfo_path}\logs\crawling_scraping_log'
